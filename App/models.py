@@ -25,6 +25,7 @@ class BidStatus(str, Enum):
     WITHDRAWN = 'withdrawn'                  # Supplier withdrew (terminal)
     ACCEPTED = 'accepted'                    # Chief awarded (winning bid)
     REJECTED = 'rejected'                    # Chief rejected (losing bid)
+    REOPENED = 'reopened'                    # Legacy reopen marker (supplier-side revision)
 # --------------------------------------------------
 
 class User(db.Model):
@@ -229,6 +230,16 @@ class BidLine(db.Model):
         Final Line Price = Subtotal - Discount
         """
         return self.subtotal_amount - self.discount_value
+
+
+class BidRevision(db.Model):
+    __tablename__ = "bid_revisions"
+    id = db.Column(db.Integer, primary_key=True)
+    bid_id = db.Column(db.Integer, db.ForeignKey("bids.id"), unique=True, nullable=False)
+    payload = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    bid = db.relationship("Bid", backref=db.backref("reopen_revision", uselist=False))
 
 class ItemAward(db.Model):
     __tablename__ = "item_awards"

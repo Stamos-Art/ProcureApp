@@ -3,331 +3,337 @@
 {% block title %}Πίνακας Ελέγχου Προμηθευτή{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-5">
-  <!-- Page Header -->
-  <div class="d-flex justify-content-between align-items-center mb-5">
-    <div>
-      <h1 class="h3 fw-bold text-dark mb-2">Καλώς ήρθατε πίσω!</h1>
-      <p class="text-muted mb-0">Εδώ είναι η τρέχουσα κατάστασή σας και οι ανοιχτές ζητήσεις.</p>
-    </div>
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-8">
+  <div>
+    <h1 class="mb-2" style="color: var(--color-navy);">
+      <i class="bi bi-person-badge-fill me-3" style="color: var(--color-teal);"></i>Καλώς ήρθατε πίσω!
+    </h1>
+    <p class="text-secondary mb-0">Εδώ είναι η τρέχουσα κατάστασή σας και οι ανοιχτές ζητήσεις.</p>
   </div>
-
-  <!-- Statistics Cards Row -->
-  <div class="row g-4 mb-5">
-    <div class="col-md-3">
-      <div class="card border-0 shadow-sm">
-        <div class="card-body p-4">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <p class="text-muted small mb-2">Εκκρεμείς Ζητήσεις</p>
-              <h2 class="fw-bold text-dark mb-0">{{ pending_count }}</h2>
-            </div>
-            <i class="bi bi-inbox text-primary fs-4"></i>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-3">
-      <div class="card border-0 shadow-sm">
-        <div class="card-body p-4">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <p class="text-muted small mb-2">Υποβληθείσες</p>
-              <h2 class="fw-bold text-dark mb-0">{{ submitted_count }}</h2>
-            </div>
-            <i class="bi bi-send-check text-success fs-4"></i>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-3">
-      <div class="card border-0 shadow-sm">
-        <div class="card-body p-4">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <p class="text-muted small mb-2">Κερδισμένες</p>
-              <h2 class="fw-bold text-dark mb-0">{{ awards_count }}</h2>
-            </div>
-            <i class="bi bi-trophy text-warning fs-4"></i>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-3">
-      <div class="card border-0 shadow-sm">
-        <div class="card-body p-4">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <p class="text-muted small mb-2">Σύνολο Ζητήσεων</p>
-              <h2 class="fw-bold text-dark mb-0">{{ rfqs|length if rfqs else 0 }}</h2>
-            </div>
-            <i class="bi bi-file-earmark-text text-info fs-4"></i>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Open RFQs Section -->
-  <div class="mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h4 class="fw-bold text-dark mb-0">Ανοιχτές Ζητήσεις</h4>
-      <a href="{{ url_for('supplier.history') }}" class="btn btn-sm btn-outline-primary">
-        <i class="bi bi-clock-history me-1"></i>Ιστορικό
-      </a>
-    </div>
-
-    {% if rfqs %}
-    <div class="card border-0 shadow-sm">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead class="bg-light">
-            <tr>
-              <th class="border-0 ps-4">Αριθμός</th>
-              <th class="border-0">Τίτλος</th>
-              <th class="border-0">Τόπος Παράδοσης</th>
-              <th class="border-0">Προθεσμία</th>
-              <th class="border-0">Κατάσταση</th>
-              <th class="border-0 text-end pe-4">Ενέργειες</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for rfq in rfqs %}
-            <tr>
-              <td class="ps-4">#{{ rfq.id }}</td>
-              <td>{{ rfq.title }}</td>
-              <td>{{ rfq.delivery_location or '-' }}</td>
-              <td>
-                {% if rfq.submit_deadline %}
-                  {{ rfq.submit_deadline.strftime('%d/%m/%Y') }}
-                {% else %}
-                  -
-                {% endif %}
-              </td>
-              <td>
-                {% if bids_map and rfq.id in bids_map %}
-                  {% if bids_map[rfq.id].status == 'submitted' %}
-                    <span class="badge bg-success">Υποβληθείσα</span>
-                  {% else %}
-                    <span class="badge bg-warning text-dark">Πρόχειρο</span>
-                  {% endif %}
-                {% else %}
-                  <span class="badge bg-secondary">Προς Υποβολή</span>
-                {% endif %}
-              </td>
-              <td class="text-end pe-4">
-                <a href="{{ url_for('supplier.bid', req_id=rfq.id) }}" class="btn btn-sm btn-primary">
-                  {% if bids_map and rfq.id in bids_map %}Επεξεργασία{% else %}Υποβολή{% endif %}
-                </a>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-    {% else %}
-    <div class="alert alert-info">
-      <i class="bi bi-info-circle me-2"></i>Δεν υπάρχουν ανοιχτές ζητήσεις αυτή τη στιγμή.
-    </div>
-    {% endif %}
-  </div>
-
-  <!-- Awarded RFQs Section -->
-  {% if awarded_rfqs %}
-  <div class="mb-5">
-    <h4 class="fw-bold text-dark mb-4">Κερδισμένες Παραγγελίες</h4>
-
-    <div class="card border-0 shadow-sm">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead class="bg-light">
-            <tr>
-              <th class="border-0 ps-4">Αριθμός</th>
-              <th class="border-0">Τίτλος</th>
-              <th class="border-0">Τόπος Παράδοσης</th>
-              <th class="border-0">Κατάσταση</th>
-              <th class="border-0 text-end pe-4">Ενέργειες</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for rfq in awarded_rfqs %}
-            <tr>
-              <td class="ps-4">#{{ rfq.id }}</td>
-              <td>{{ rfq.title }}</td>
-              <td>{{ rfq.delivery_location or '-' }}</td>
-              <td><span class="badge bg-success">Ανατεθείσα</span></td>
-              <td class="text-end pe-4">
-                <a href="{{ url_for('supplier.bid', req_id=rfq.id) }}" class="btn btn-sm btn-info">Παραγγελία</a>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  {% endif %}
-
 </div>
 
-{% endblock %}
-      <div class="card">
-        <div class="card-body">
-          <h6 class="text-muted small">Κερδισμένες Παραγγελίες</h6>
-          <h2>{{ awards_count }}</h2>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card">
-        <div class="card-body">
-          <h6 class="text-muted small">Σύνολο Ζητήσεων</h6>
-          <h2>{{ rfqs|length }}</h2>
-        </div>
+<!-- Statistics Cards Row -->
+<div class="row g-4 mb-8 supplier-kpi-grid">
+  <!-- Pending Requests Card -->
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="kpi-card">
+      <div class="kpi-card-title">Εκκρεμείς Ζητήσεις</div>
+      <div class="kpi-card-value">{{ pending_count }}</div>
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-inbox" style="font-size: 1.25rem; color: var(--color-teal);"></i>
+        <span class="small" style="color: var(--color-text-secondary);">Αναμονή προσφοράς</span>
       </div>
     </div>
   </div>
 
-  <!-- RFQs Table -->
-  <div class="card">
-    <div class="card-header">
-      <h5>Διαθέσιμες Ζητήσεις</h5>
+  <!-- Submitted Card -->
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="kpi-card accent-success">
+      <div class="kpi-card-title">Υποβληθείσες</div>
+      <div class="kpi-card-value">{{ submitted_count }}</div>
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-send-check" style="font-size: 1.25rem; color: var(--color-success);"></i>
+        <span class="small" style="color: var(--color-text-secondary);">Επιτυχώς υποβληθείσες</span>
+      </div>
     </div>
-    <div class="card-body table-responsive">
+  </div>
+
+  <!-- Awards Card -->
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="kpi-card accent-warning">
+      <div class="kpi-card-title">Κερδισμένες</div>
+      <div class="kpi-card-value">{{ awards_count }}</div>
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-trophy" style="font-size: 1.25rem; color: var(--color-warning);"></i>
+        <span class="small" style="color: var(--color-text-secondary);">Κερδισμένες παραγγελίες</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Total Requests Card -->
+  <div class="col-12 col-sm-6 col-lg-3">
+    <div class="kpi-card accent-teal">
+      <div class="kpi-card-title">Σύνολο Ζητήσεων</div>
+      <div class="kpi-card-value">{{ rfqs|length if rfqs else 0 }}</div>
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-file-earmark-text" style="font-size: 1.25rem; color: var(--color-teal);"></i>
+        <span class="small" style="color: var(--color-text-secondary);">Όλες οι ζητήσεις</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Layout with Sidebar -->
+<div class="row g-6 mb-8 dashboard-split-layout">
+  <!-- Filters Sidebar -->
+  <div class="col-12 col-lg-3 dashboard-filters-col">
+    <div class="filters-sidebar">
+      <!-- Header -->
+      <div class="filters-sidebar-header">
+        <div class="filters-sidebar-title">
+          <i class="bi bi-funnel-fill"></i>
+          Φίλτρα
+        </div>
+        <button class="filters-sidebar-clear" onclick="clearFilters()">Καθαρισμός</button>
+      </div>
+
+      <form method="get" id="filterForm">
+        <!-- Αναζήτηση -->
+        <div class="filter-section">
+          <div class="filter-section-title">
+            <i class="bi bi-search"></i>
+            Αναζήτηση
+          </div>
+          <input type="text" name="q" class="filter-input w-100" placeholder="Τίτλος ή λέξη..." value="">
+        </div>
+
+        <!-- Κατάσταση Ζήτησης -->
+        <div class="filter-section">
+          <div class="filter-section-title">
+            <i class="bi bi-list-check"></i>
+            Κατάσταση
+          </div>
+          <div class="filter-group">
+            <label class="filter-item">
+              <input type="radio" name="status" value="all" checked class="filter-checkbox">
+              <span class="filter-label">Όλες</span>
+            </label>
+            <label class="filter-item">
+              <input type="radio" name="status" value="open" class="filter-checkbox">
+              <span class="filter-label">Ανοιχτές</span>
+            </label>
+            <label class="filter-item">
+              <input type="radio" name="status" value="awarded" class="filter-checkbox">
+              <span class="filter-label">Κερδισμένες</span>
+            </label>
+            <label class="filter-item">
+              <input type="radio" name="status" value="pending" class="filter-checkbox">
+              <span class="filter-label">Εκκρεμείς</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Είδος Προσφοράς -->
+        <div class="filter-section">
+          <div class="filter-section-title">
+            <i class="bi bi-file-earmark"></i>
+            Είδος Προσφοράς
+          </div>
+          <div class="filter-group">
+            <label class="filter-item">
+              <input type="checkbox" class="filter-checkbox">
+              <span class="filter-label">Υποβληθείσα</span>
+            </label>
+            <label class="filter-item">
+              <input type="checkbox" class="filter-checkbox">
+              <span class="filter-label">Πρόχειρο</span>
+            </label>
+            <label class="filter-item">
+              <input type="checkbox" class="filter-checkbox">
+              <span class="filter-label">Προς Υποβολή</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Χρονολογία Προθεσμίας -->
+        <div class="filter-section">
+          <div class="filter-section-title">
+            <i class="bi bi-calendar2"></i>
+            Προθεσμία
+          </div>
+          <div class="filter-group">
+            <label class="filter-item">
+              <input type="checkbox" class="filter-checkbox">
+              <span class="filter-label">Αυτή την εβδομάδα</span>
+            </label>
+            <label class="filter-item">
+              <input type="checkbox" class="filter-checkbox">
+              <span class="filter-label">Αυτό τον μήνα</span>
+            </label>
+            <label class="filter-item">
+              <input type="checkbox" class="filter-checkbox">
+              <span class="filter-label">Τελευταίοι 3 μήνες</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Κατηγορία Προϊόντος -->
+        <div class="filter-section">
+          <div class="filter-section-title">
+            <i class="bi bi-tags"></i>
+            Κατηγορία
+          </div>
+          <select name="category" class="filter-select w-100">
+            <option value="">Όλες οι κατηγορίες</option>
+            <option value="electronics">Ηλεκτρονικά</option>
+            <option value="mechanical">Μηχανικά</option>
+            <option value="materials">Υλικά</option>
+            <option value="services">Υπηρεσίες</option>
+          </select>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="filters-actions">
+          <button type="submit" class="filters-btn-apply" onclick="showLoading()">
+            <i class="bi bi-check-circle"></i>
+            <span>Εφαρμογή</span>
+          </button>
+          <button type="reset" class="filters-btn-reset" onclick="clearFilters()">
+            <i class="bi bi-x-circle"></i>
+            <span>Καθαρισμός</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="col-12 col-lg-9 dashboard-results-col">
+    <!-- Open RFQs Section -->
+    <div class="mb-8">
+      <div class="d-flex justify-content-between align-items-center mb-5">
+        <h2 class="mb-0" style="color: var(--color-navy); font-size: var(--font-size-lg);">
+          <i class="bi bi-folder-open me-2" style="color: var(--color-navy);"></i>Ανοιχτές Ζητήσεις
+        </h2>
+        <a href="{{ url_for('supplier.history') }}" class="btn btn-secondary btn-sm">
+          <i class="bi bi-clock-history me-1"></i>Ιστορικό
+        </a>
+      </div>
+
       {% if rfqs %}
-      <table class="table table-striped">
-        <thead>
-          <tr>
-            <th>Αριθμός</th>
-            <th>Τίτλος</th>
-            <th>Προθεσμία</th>
-            <th>Κατάσταση</th>
-            <th>Ενέργειες</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for rfq in rfqs %}
-          <tr>
-            <td>#{{ rfq.id }}</td>
-            <td>{{ rfq.title }}</td>
-            <td>{{ rfq.submit_deadline.strftime('%d/%m/%Y') if rfq.submit_deadline else '-' }}</td>
-            <td>
-              {% if bids_map and rfq.id in bids_map %}
-                <span class="badge bg-success">Υποβληθείσα</span>
-              {% else %}
-                <span class="badge bg-warning">Προς Υποβολή</span>
-              {% endif %}
-            </td>
-            <td>
-              <a href="{{ url_for('supplier.bid', req_id=rfq.id) }}" class="btn btn-sm btn-primary">Προσφορά</a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="card shadow-md overflow-hidden" style="border: none; border-radius: var(--radius-lg);">
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="padding: var(--space-4);">Αριθμός</th>
+                <th>Τίτλος</th>
+                <th>Τόπος Παράδοσης</th>
+                <th>Προθεσμία</th>
+                <th>Κατάσταση</th>
+                <th style="text-align: right; padding-right: var(--space-4);">Ενέργειες</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for rfq in rfqs %}
+              <tr>
+                <td style="padding: var(--space-4);">
+                  <span class="fw-bold" style="color: var(--color-navy);">#{{ rfq.id }}</span>
+                </td>
+                <td style="padding: var(--space-4);">
+                  <span class="fw-semibold" style="color: var(--color-text-primary);">{{ rfq.title }}</span>
+                </td>
+                <td style="padding: var(--space-4); color: var(--color-text-secondary);">{{ rfq.delivery_location or '-' }}</td>
+                <td style="padding: var(--space-4); color: var(--color-text-secondary);">
+                  {% if rfq.submit_deadline %}
+                    {{ rfq.submit_deadline.strftime('%d/%m/%Y') }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td style="padding: var(--space-4);">
+                  {% if bids_map and rfq.id in bids_map %}
+                    {% if bids_map[rfq.id].status == 'submitted' %}
+                      <span class="badge badge-success">Υποβληθείσα</span>
+                    {% else %}
+                      <span class="badge badge-warning">Πρόχειρο</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="badge badge-secondary">Προς Υποβολή</span>
+                  {% endif %}
+                </td>
+                <td style="text-align: right; padding-right: var(--space-4);">
+                  <a href="{{ url_for('supplier.bid', req_id=rfq.id) }}" class="btn btn-primary btn-sm px-3">
+                    {% if bids_map and rfq.id in bids_map %}<i class="bi bi-pencil-square me-1"></i>Επεξεργασία{% else %}<i class="bi bi-plus-lg me-1"></i>Υποβολή{% endif %}
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
       {% else %}
-      <p class="text-muted text-center py-4">Δεν υπάρχουν διαθέσιμες ζητήσεις</p>
+      <div class="alert alert-info" style="border-left: 4px solid var(--color-info); border-radius: var(--radius-lg);">
+        <i class="bi bi-info-circle me-2"></i>Δεν υπάρχουν ανοιχτές ζητήσεις αυτή τη στιγμή.
+      </div>
       {% endif %}
     </div>
-  </div>
 
-  <!-- Awarded RFQs -->
-  {% if awarded_rfqs %}
-  <div class="card mt-4">
-    <div class="card-header">
-      <h5>Κερδισμένες Παραγγελίες</h5>
-    </div>
-    <div class="card-body table-responsive">
-      <table class="table table-striped">
-        <thead>
-          <tr>
-            <th>Αριθμός</th>
-            <th>Τίτλος</th>
-            <th>Τόπος Παράδοσης</th>
-            <th>Κατάσταση</th>
-            <th>Ενέργειες</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for rfq in awarded_rfqs %}
-          <tr>
-            <td>#{{ rfq.id }}</td>
-            <td>{{ rfq.title }}</td>
-            <td>{{ rfq.delivery_location or '-' }}</td>
-            <td><span class="badge bg-success">Ανατεθείσα</span></td>
-            <td>
-              <a href="{{ url_for('supplier.bid', req_id=rfq.id) }}" class="btn btn-sm btn-info">Παραγγελία</a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% endif %}
+    <!-- Awarded RFQs Section -->
+    {% if awarded_rfqs %}
+    <div class="mb-8">
+      <h2 class="mb-5" style="color: var(--color-navy); font-size: var(--font-size-lg);">
+        <i class="bi bi-award me-2" style="color: var(--color-success);"></i>Κερδισμένες Παραγγελίες
+      </h2>
 
-</div>
-
-{% endblock %}
-        {% if r.submit_deadline and (r.submit_deadline - now()).total_seconds() < 86400 and (r.submit_deadline - now()).total_seconds() > 0 %}
-            {% set _ = closing_soon.append(r) %}
-        {% endif %}
-    {% endfor %}
-    
-    {% if closing_soon %}
-    <div class="alert alert-warning alert-dismissible fade show mb-4 border-warning-subtle rounded-3 p-4">
-        <div class="d-flex align-items-start">
-            <i class="bi bi-clock-history2 fs-4 text-warning me-3 mt-1"></i>
-            <div>
-                <h5 class="alert-heading fw-bold mb-2"><i class="bi bi-exclamation-triangle me-2"></i>Ζητήσεις που κλείνουν σύντομα!</h5>
-                <p class="mb-2 small">Έχετε {{ closing_soon|length }} ζητήση(σεις) με προθεσμία έως σήμερα:</p>
-                <div class="d-flex gap-2 flex-wrap">
-                    {% for rfq in closing_soon %}
-                    <a href="{{ url_for('supplier.bid', req_id=rfq.id) }}" class="btn btn-sm btn-warning">
-                        <i class="bi bi-file-earmark me-1"></i>RFQ #{{ rfq.id }} - {{ rfq.title[:20] }}...
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      <div class="card shadow-md overflow-hidden" style="border: none; border-radius: var(--radius-lg);">
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="padding: var(--space-4);">Αριθμός</th>
+                <th>Τίτλος</th>
+                <th>Τόπος Παράδοσης</th>
+                <th>Κατάσταση</th>
+                <th style="text-align: right; padding-right: var(--space-4);">Ενέργειες</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for rfq in awarded_rfqs %}
+              <tr>
+                <td style="padding: var(--space-4);">
+                  <span class="fw-bold" style="color: var(--color-navy);">#{{ rfq.id }}</span>
+                </td>
+                <td style="padding: var(--space-4);">
+                  <span class="fw-semibold" style="color: var(--color-text-primary);">{{ rfq.title }}</span>
+                </td>
+                <td style="padding: var(--space-4); color: var(--color-text-secondary);">{{ rfq.delivery_location or '-' }}</td>
+                <td style="padding: var(--space-4);">
+                  <span class="badge badge-success">Ανατεθείσα</span>
+                </td>
+                <td style="text-align: right; padding-right: var(--space-4);">
+                  <a href="{{ url_for('supplier.bid', req_id=rfq.id) }}" class="btn btn-info btn-sm px-3">
+                    <i class="bi bi-eye me-1"></i>Παραγγελία
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
+      </div>
     </div>
     {% endif %}
-{% endif %}
+  </div>
+</div>
 
-<!-- STATISTICS ROW 1: Main KPIs
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 h-100 hover-elevate transition-all" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-            <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="fw-bold text-uppercase mb-0" style="font-size: 0.75rem; opacity: 0.9;">Εκκρεμεις Ζητησεις</h6>
-                    <i class="bi bi-inbox fs-4" style="opacity: 0.8;"></i>
-                </div>
-                <h1 class="display-5 fw-bolder mb-0">{{ pending_count }}</h1>
-                <p class="small mt-2 mb-0" style="opacity: 0.9;"><i class="bi bi-arrow-right-short"></i> Προς υποβολή προσφοράς</p>
-            </div>
-        </div>
-    </div>
+<script>
+    function showLoading() {
+        const filterForm = document.getElementById('filterForm');
+        if (filterForm) {
+            filterForm.submit();
+        }
+    }
 
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 h-100 hover-elevate transition-all" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
-            <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="fw-bold text-uppercase mb-0" style="font-size: 0.75rem; opacity: 0.9;">Υποβληθεισες</h6>
-                    <i class="bi bi-send-check fs-4" style="opacity: 0.8;"></i>
-                </div>
-                <h1 class="display-5 fw-bolder mb-0">{{ submitted_count }}</h1>
-                <p class="small mt-2 mb-0" style="opacity: 0.9;"><i class="bi bi-clock-history"></i> Σε αναμονή αξιολόγησης</p>
-            </div>
-        </div>
-    </div>
+    function clearFilters() {
+        const filterForm = document.getElementById('filterForm');
+        if (filterForm) {
+            filterForm.reset();
+            filterForm.submit();
+        }
+    }
 
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 h-100 hover-elevate transition-all" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+    // Auto-submit on status change
+    document.querySelectorAll('input[name="status"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            showLoading();
+        });
+    });
+</script>
+
+{% endblock %}
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold text-uppercase mb-0" style="font-size: 0.75rem; opacity: 0.9;">Κερδισμενες</h6>

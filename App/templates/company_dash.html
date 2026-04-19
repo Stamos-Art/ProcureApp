@@ -1,118 +1,303 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-8">
     <div>
-        <h3 class="mb-1 fw-bolder text-dark"><i class="bi bi-grid-1x2-fill me-2 text-primary"></i>Πίνακας Ελέγχου</h3>
-        <p class="text-muted small mb-0">Διαχείριση και παρακολούθηση των ζητήσεων της εταιρείας.</p>
+        <h1 class="mb-2" style="color: var(--color-navy);">
+            <i class="bi bi-grid-3x3-gap-fill me-3" style="color: var(--color-teal);"></i>Πίνακας Ελέγχου
+        </h1>
+        <p class="text-secondary mb-0">Διαχείριση και παρακολούθηση των ζητήσεων της εταιρείας.</p>
     </div>
-    <a href="{{ url_for('company.new_request') }}" class="btn btn-primary px-4 py-2 shadow-sm fw-bold rounded-pill">
-        <i class="bi bi-plus-lg me-1"></i> Νέα Ζήτηση
+    <a href="{{ url_for('company.new_request') }}" class="btn btn-primary px-5 py-3" style="font-weight: var(--font-weight-semibold);">
+        <i class="bi bi-plus-lg me-2"></i> Νέα Ζήτηση
     </a>
 </div>
 
-<div class="card border-0 shadow-sm rounded-3 mb-4">
-    <div class="card-body p-3">
-        <form method="get" class="row g-3 align-items-center" id="filterForm">
-            <div class="col-md-5">
-                <div class="input-group">
-                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                    <input type="text" name="q" class="form-control border-start-0 bg-light ps-0" placeholder="Αναζήτηση με τίτλο ή λέξη-κλειδί..." value="{{ q or '' }}">
+<!-- Main Layout with Sidebar -->
+<div class="row g-4 mb-8 company-dashboard-layout dashboard-split-layout">
+    <!-- Filters Sidebar -->
+    <div class="col-12 col-lg-3 company-dashboard-filters dashboard-filters-col">
+        <div class="filters-sidebar">
+            <!-- Header -->
+            <div class="filters-sidebar-header">
+                <div class="filters-sidebar-title">
+                    <i class="bi bi-funnel-fill"></i>
+                    Φίλτρα
                 </div>
+                <button class="filters-sidebar-clear" onclick="clearFilters()">Καθαρισμός</button>
             </div>
-            <div class="col-md-4">
-                <select name="phase" class="form-select bg-light fw-semibold" onchange="showLoading(); this.form.submit()">
-                    <option value="all" {% if phase == 'all' %}selected{% endif %}>Όλες οι Καταστάσεις</option>
-                    <option value="awaiting_approval" {% if phase == 'awaiting_approval' %}selected{% endif %}>Προς Έγκριση</option>
-                    <option value="pending_final_approval" {% if phase == 'pending_final_approval' %}selected{% endif %}>Αναμονή Τελικής Έγκρισης</option>
-                    <option value="offers_received" {% if phase == 'offers_received' %}selected{% endif %}>Υποβλήθηκαν Προσφορές</option>
-                    <option value="awarded" {% if phase == 'awarded' %}selected{% endif %}>Ανατέθηκε</option>
-                    <option value="received" {% if phase == 'received' %}selected{% endif %}>Παραλήφθηκε</option>
-                    <option value="cancelled" {% if phase == 'cancelled' %}selected{% endif %}>Ακυρώθηκε</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-dark w-100 fw-bold" onclick="showLoading()">
-                    <span id="btnText">Εφαρμογή Φίλτρων</span>
-                    <span id="btnSpinner" class="spinner-border spinner-border-sm d-none"></span>
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
 
-<div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light text-secondary small text-uppercase">
-                <tr>
-                    <th class="ps-4 py-3">ID</th>
-                    <th>Τιτλος & Εργο</th>
-                    <th>Δημιουργος</th>
-                    <th>Προθεσμιες</th>
-                    <th>Κατασταση</th>
-                    <th class="text-end pe-4">Ενεργεια</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for r in rfqs %}
-                {% set info = phase_map[r.id] %}
-                <tr class="{% if r.status == 'cancelled' %}opacity-50 bg-light{% endif %}">
-                    <td class="ps-4 fw-bold text-dark">#{{ r.id }}</td>
-                    <td>
-                        <div class="fw-bolder text-dark mb-1">{{ r.title }}</div>
-                        <div class="small text-muted fw-semibold"><i class="bi bi-buildings me-1 text-primary opacity-75"></i> {{ r.cost_center.name if r.cost_center else 'Χωρίς Έργο' }}</div>
-                    </td>
-                    <td><span class="small fw-bold">{{ r.created_by }}</span></td>
-                    <td>
-                        <div class="small mb-1"><span class="text-muted">Υπ:</span> {{ r.submit_deadline.strftime('%d/%m/%y') if r.submit_deadline else '-' }}</div>
-                        <div class="small"><span class="text-muted">Παρ:</span> {{ r.delivery_deadline.strftime('%d/%m/%y') if r.delivery_deadline else '-' }}</div>
-                    </td>
-                    <td>
-                        <span class="{{ info.badge }} px-3 py-2 rounded-pill fw-bold shadow-sm" style="font-size: 0.8rem;">
-                            <i class="bi {{ info.icon }} me-1"></i> {{ info.label }}
-                        </span>
-                    </td>
-                    <td class="text-end pe-4">
-                        <a href="{{ url_for('company.request_detail', req_id=r.id) }}" class="btn btn-sm btn-white border shadow-sm text-primary fw-bold px-3 py-2 rounded-3">
-                            Προβολή <i class="bi bi-arrow-right ms-1"></i>
-                        </a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="6" class="text-center py-5 text-muted italic">Δεν βρέθηκαν ζητήσεις.</td></tr>
+            <form method="get" id="filterForm">
+                <!-- Αναζήτηση -->
+                <div class="filter-section">
+                    <div class="filter-section-title">
+                        <i class="bi bi-search"></i>
+                        Αναζήτηση
+                    </div>
+                    <input type="text" name="q" class="filter-input w-100" placeholder="Τίτλος ή λέξη..." value="{{ q or '' }}">
+                </div>
+
+                <!-- Κατάσταση -->
+                <div class="filter-section">
+                    <div class="filter-section-title">
+                        <i class="bi bi-list-check"></i>
+                        Κατάσταση
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-item">
+                            <input type="checkbox" name="phase" value="all" class="filter-checkbox" {% if not phase_filters %}checked{% endif %}>
+                            <span class="filter-label">All</span>
+                        </label>
+                        <label class="filter-item">
+                            <input type="checkbox" name="phase" value="awaiting_approval" class="filter-checkbox" {% if 'awaiting_approval' in phase_filters %}checked{% endif %}>
+                            <span class="filter-label">Pending approval</span>
+                        </label>
+                        <label class="filter-item">
+                            <input type="checkbox" name="phase" value="pending_final_approval" class="filter-checkbox" {% if 'pending_final_approval' in phase_filters %}checked{% endif %}>
+                            <span class="filter-label">Awaiting budget approval</span>
+                        </label>
+                        <label class="filter-item">
+                            <input type="checkbox" name="phase" value="awaiting_offers" class="filter-checkbox" {% if 'awaiting_offers' in phase_filters %}checked{% endif %}>
+                            <span class="filter-label">Awaiting offers</span>
+                        </label>
+                        <label class="filter-item">
+                            <input type="checkbox" name="phase" value="offers_received" class="filter-checkbox" {% if 'offers_received' in phase_filters %}checked{% endif %}>
+                            <span class="filter-label">Offers received</span>
+                        </label>
+                        <label class="filter-item">
+                            <input type="checkbox" name="phase" value="awarded" class="filter-checkbox" {% if 'awarded' in phase_filters %}checked{% endif %}>
+                            <span class="filter-label">Awarded</span>
+                        </label>
+                        <label class="filter-item">
+                            <input type="checkbox" name="phase" value="received" class="filter-checkbox" {% if 'received' in phase_filters %}checked{% endif %}>
+                            <span class="filter-label">Received</span>
+                        </label>
+                        <label class="filter-item">
+                            <input type="checkbox" name="phase" value="denied" class="filter-checkbox" {% if 'denied' in phase_filters %}checked{% endif %}>
+                            <span class="filter-label">Denied</span>
+                        </label>
+                        <label class="filter-item">
+                            <input type="checkbox" name="phase" value="cancelled" class="filter-checkbox" {% if 'cancelled' in phase_filters %}checked{% endif %}>
+                            <span class="filter-label">Cancelled</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Χρονολογία Δημιουργίας -->
+                <div class="filter-section">
+                    <div class="filter-section-title">
+                        <i class="bi bi-calendar2"></i>
+                        Περίοδος
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-item">
+                            <input type="checkbox" name="period" value="week" class="filter-checkbox" {% if 'week' in period_filters %}checked{% endif %}>
+                            <span class="filter-label">Αυτή την εβδομάδα</span>
+                        </label>
+                        <label class="filter-item">
+                            <input type="checkbox" name="period" value="month" class="filter-checkbox" {% if 'month' in period_filters %}checked{% endif %}>
+                            <span class="filter-label">Αυτό τον μήνα</span>
+                        </label>
+                        <label class="filter-item">
+                            <input type="checkbox" name="period" value="quarter" class="filter-checkbox" {% if 'quarter' in period_filters %}checked{% endif %}>
+                            <span class="filter-label">Τελευταίοι 3 μήνες</span>
+                        </label>
+                        <label class="filter-item">
+                            <input type="checkbox" name="period" value="older" class="filter-checkbox" {% if 'older' in period_filters %}checked{% endif %}>
+                            <span class="filter-label">Περισσότερα από 3 μήνες</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Κόστος Κέντρο -->
+                <div class="filter-section">
+                    <div class="filter-section-title">
+                        <i class="bi bi-building"></i>
+                        Κέντρο Κόστους
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-item">
+                            <input type="checkbox" name="cost_center" value="all" class="filter-checkbox" {% if not cost_center_filters %}checked{% endif %}>
+                            <span class="filter-label">Όλα</span>
+                        </label>
+                        {% for cc in cost_centers %}
+                        <label class="filter-item">
+                            <input type="checkbox" name="cost_center" value="{{ cc.id }}" class="filter-checkbox" {% if cc.id|string in cost_center_filters %}checked{% endif %}>
+                            <span class="filter-label">{{ cc.code }} - {{ cc.name }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="filters-actions">
+                    <button type="submit" class="filters-btn-apply" onclick="showLoading()">
+                        <i class="bi bi-check-circle"></i>
+                        <span>Εφαρμογή</span>
+                    </button>
+                    <button type="reset" class="filters-btn-reset" onclick="clearFilters()">
+                        <i class="bi bi-x-circle"></i>
+                        <span>Καθαρισμός</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Requests Table -->
+    <div class="col-12 col-lg-9 company-dashboard-results dashboard-results-col">
+        <div class="card shadow-md overflow-hidden mb-8" style="border: none; border-radius: var(--radius-lg);">
+            <div class="table-responsive">
+                <table class="table" style="margin-bottom: 0;">
+                    <thead>
+                        <tr>
+                            <th style="padding: var(--space-4);">ID</th>
+                            <th>Τίτλος & Έργο</th>
+                            <th>Δημιουργός</th>
+                            <th>Προθεσμίες</th>
+                            <th>Κατάσταση</th>
+                            <th style="text-align: right; padding-right: var(--space-4);">Ενέργεια</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in rfqs %}
+                        {% set info = phase_map[r.id] %}
+                        <tr {% if r.status == 'cancelled' %}style="opacity: 0.6; background-color: var(--color-gray-50);"{% endif %}>
+                            <td style="padding: var(--space-4);">
+                                <span class="fw-bold" style="color: var(--color-navy);">#{{ r.id }}</span>
+                            </td>
+                            <td style="padding: var(--space-4);">
+                                <div class="fw-semibold" style="color: var(--color-text-primary);">{{ r.title }}</div>
+                                <div class="small" style="color: var(--color-text-secondary); margin-top: var(--space-1);">
+                                    <i class="bi bi-buildings me-1" style="color: var(--color-teal);"></i> {{ r.cost_center.name if r.cost_center else 'Χωρίς Έργο' }}
+                                </div>
+                            </td>
+                            <td style="padding: var(--space-4);">
+                                <span class="small fw-semibold">{{ r.created_by }}</span>
+                            </td>
+                            <td style="padding: var(--space-4);">
+                                <div class="small mb-1">
+                                    <span style="color: var(--color-text-secondary);">Υπ:</span>
+                                    <span class="fw-semibold">{{ r.submit_deadline.strftime('%d/%m/%y') if r.submit_deadline else '-' }}</span>
+                                </div>
+                                <div class="small">
+                                    <span style="color: var(--color-text-secondary);">Παρ:</span>
+                                    <span class="fw-semibold">{{ r.delivery_deadline.strftime('%d/%m/%y') if r.delivery_deadline else '-' }}</span>
+                                </div>
+                            </td>
+                            <td style="padding: var(--space-4);">
+                                <span class="{{ info.badge }} px-3 py-2 rounded-pill fw-bold" style="font-size: 0.8rem;">
+                                    <i class="bi {{ info.icon }} me-1"></i> {{ info.label }}
+                                </span>
+                            </td>
+                            <td style="text-align: right; padding-right: var(--space-4);">
+                                <a href="{{ url_for('company.request_detail', req_id=r.id) }}" class="btn btn-secondary btn-sm px-3">
+                                    <i class="bi bi-arrow-right me-1"></i> Προβολή
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5" style="color: var(--color-text-secondary);">
+                                <i class="bi bi-inbox fs-4 d-block mb-2 opacity-50"></i>
+                                <span>Δεν βρέθηκαν ζητήσεις.</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <nav class="mt-8 mb-8">
+            <ul class="pagination justify-content-center">
+                <li class="pagination-item {% if page == 1 %}disabled{% endif %}">
+                    <a class="pagination-link" href="{{ url_for('company.dashboard', page=page-1, phase=phase_query, q=q, cost_center=cost_center_query, period=period_query) }}">
+                        <i class="bi bi-chevron-left"></i> Προηγούμενη
+                    </a>
+                </li>
+                {% for p in range(1, total_pages + 1) %}
+                <li class="pagination-item">
+                    <a class="pagination-link {% if p == page %}active{% endif %}" href="{{ url_for('company.dashboard', page=p, phase=phase_query, q=q, cost_center=cost_center_query, period=period_query) }}">{{ p }}</a>
+                </li>
                 {% endfor %}
-            </tbody>
-        </table>
+                <li class="pagination-item {% if page == total_pages %}disabled{% endif %}">
+                    <a class="pagination-link" href="{{ url_for('company.dashboard', page=page+1, phase=phase_query, q=q, cost_center=cost_center_query, period=period_query) }}">
+                        Επόμενη <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
     </div>
 </div>
-
-{% if total_pages > 1 %}
-<nav class="mt-4 mb-5">
-    <ul class="pagination justify-content-center">
-        <li class="page-item {% if page == 1 %}disabled{% endif %}">
-            <a class="page-link shadow-sm" href="{{ url_for('company.dashboard', page=page-1, phase=phase, q=q) }}">Προηγούμενη</a>
-        </li>
-        {% for p in range(1, total_pages + 1) %}
-        <li class="page-item {% if p == page %}active{% endif %}">
-            <a class="page-link shadow-sm" href="{{ url_for('company.dashboard', page=p, phase=phase, q=q) }}">{{ p }}</a>
-        </li>
-        {% endfor %}
-        <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-            <a class="page-link shadow-sm" href="{{ url_for('company.dashboard', page=page+1, phase=phase, q=q) }}">Επόμενη</a>
-        </li>
-    </ul>
-</nav>
-{% endif %}
 
 <script>
     function showLoading() {
-        const btnText = document.getElementById('btnText');
-        const btnSpinner = document.getElementById('btnSpinner');
-        if (btnText && btnSpinner) {
-            btnText.classList.add('d-none');
-            btnSpinner.classList.remove('d-none');
+        const filterForm = document.getElementById('filterForm');
+        if (filterForm) {
+            filterForm.submit();
         }
     }
+
+    function clearFilters() {
+        window.location.href = "{{ url_for('company.dashboard') }}";
+    }
+
+    const allStatusCheckbox = document.querySelector('input[name="phase"][value="all"]');
+    const statusCheckboxes = Array.from(document.querySelectorAll('input[name="phase"]')).filter(checkbox => checkbox.value !== 'all');
+
+    const allCostCentersCheckbox = document.querySelector('input[name="cost_center"][value="all"]');
+    const costCenterCheckboxes = Array.from(document.querySelectorAll('input[name="cost_center"]')).filter(checkbox => checkbox.value !== 'all');
+
+    if (allCostCentersCheckbox) {
+        allCostCentersCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                costCenterCheckboxes.forEach(checkbox => checkbox.checked = false);
+            }
+        });
+    }
+
+    costCenterCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            if (this.checked && allCostCentersCheckbox) {
+                allCostCentersCheckbox.checked = false;
+            }
+
+            if (allCostCentersCheckbox && !costCenterCheckboxes.some(option => option.checked)) {
+                allCostCentersCheckbox.checked = true;
+            }
+        });
+    });
+
+    if (allStatusCheckbox) {
+        allStatusCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                statusCheckboxes.forEach(checkbox => checkbox.checked = false);
+            }
+        });
+    }
+
+    statusCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            if (this.checked && allStatusCheckbox) {
+                allStatusCheckbox.checked = false;
+            }
+
+            if (allStatusCheckbox && !statusCheckboxes.some(option => option.checked)) {
+                allStatusCheckbox.checked = true;
+            }
+        });
+    });
+
+    // Auto-submit on filter change
+    document.querySelectorAll('input[name="phase"], input[name="period"], input[name="cost_center"]').forEach(input => {
+        input.addEventListener('change', function() {
+            showLoading();
+        });
+    });
 </script>
 {% endblock %}

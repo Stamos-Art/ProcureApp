@@ -56,47 +56,47 @@ def phase_info(rfq):
     key = get_phase_key(rfq)
     mapping = {
         "awaiting_approval": {
-            "label": "Προς Έγκριση",
+            "label": "Pending approval",
             "badge": "badge bg-warning text-dark",
             "icon": "bi-hourglass-split"
         },
         "pending_final_approval": {
-            "label": "Αναμονή Τελικής Έγκρισης",
+            "label": "Awaiting budget approval",
             "badge": "badge bg-danger",
             "icon": "bi-shield-lock"
         },
         "awaiting_offers": {
-            "label": "Αναμονή Προσφορών",
+            "label": "Awaiting offers",
             "badge": "badge bg-info text-dark",
             "icon": "bi-inbox"
         },
         "offers_received": {
-            "label": "Υποβλήθηκαν Προσφορές",
+            "label": "Offers received",
             "badge": "badge bg-primary",
             "icon": "bi-envelope-check"
         },
         "awarded": {
-            "label": "Ανατέθηκε",
+            "label": "Awarded",
             "badge": "badge bg-success",
             "icon": "bi-trophy"
         },
         "received": {
-            "label": "Παραλήφθηκε",
+            "label": "Received",
             "badge": "badge bg-success",
             "icon": "bi-box-seam"
         },
         "denied": {
-            "label": "Απορρίφθηκε",
+            "label": "Denied",
             "badge": "badge bg-danger",
             "icon": "bi-x-circle"
         },
         "closed": {
-            "label": "Κλειστό",
+            "label": "Closed",
             "badge": "badge bg-secondary",
             "icon": "bi-door-closed"
         },
         "cancelled": {
-            "label": "Ακυρώθηκε",
+            "label": "Cancelled",
             "badge": "badge bg-dark",
             "icon": "bi-slash-circle"
         },

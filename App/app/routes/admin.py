@@ -163,7 +163,7 @@ def deny(req_id):
 @admin_bp.route("/requests/<int:req_id>/approve_final", methods=["POST"])
 @require_role("chief")
 def approve_final(req_id):
-    """Final approval for high-value awards"""
+    """Budget approval for over-limit awards"""
     rfq = RequestRFQ.query.get_or_404(req_id)
     
     # Validate status transition
@@ -177,7 +177,7 @@ def approve_final(req_id):
         return redirect(url_for('company.request_detail', req_id=req_id))
     
     rfq.award_date = datetime.utcnow()
-    log_action(req_id, "Τελική έγκριση από Διευθυντή.")
+    log_action(req_id, "Budget approval granted by Chief.")
     
     # Notify winners
     awards = ItemAward.query.filter_by(request_id=req_id).all()
@@ -189,7 +189,7 @@ def approve_final(req_id):
                        url_for('supplier.bid', req_id=req_id))
     
     db.session.commit()
-    flash("Η τελική έγκριση ολοκληρώθηκε.", "success")
+    flash("Budget approval completed.", "success")
     return redirect(url_for('company.request_detail', req_id=req_id))
 
 # ============= COST CENTERS MANAGEMENT =============

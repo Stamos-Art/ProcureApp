@@ -3,7 +3,7 @@
 {% block title %}Υποβολή Προσφοράς{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-5">
+<div class="container-fluid py-5 px-4 supplier-bid-page" style="max-width: 1860px; margin: 0 auto;">
   <!-- Page Header -->
   <div class="d-flex justify-content-between align-items-center mb-5">
     <div>
@@ -121,6 +121,21 @@
         </div>
       </div>
     </div>
+  {% endif %}
+
+  {% if bid and bid.rejection_reason and not is_rfq_closed %}
+  <div class="alert alert-warning border-2 mb-4">
+    <div class="d-flex align-items-start gap-3">
+      <i class="bi bi-exclamation-triangle-fill fs-5 mt-1"></i>
+      <div>
+        <strong>Η προσφορά σας έχει απορριφθεί.</strong>
+        {% if bid.rejection_reason %}
+          <p class="mb-1 mt-1"><strong>Αιτία:</strong> {{ bid.rejection_reason }}</p>
+        {% endif %}
+        <p class="mb-0 small">Πατήστε «Υποβολή Ξανά» για να την ανοίξετε ως προσχέδιο και να παραμείνει κρυφή από την εταιρία. Μετά θα βλέπετε ξανά τα δύο κουμπιά της κανονικής φόρμας. Το λόγο απόρριψης θα τον βλέπετε εδώ μέχρι να γίνει η νέα οριστική υποβολή.</p>
+      </div>
+    </div>
+  </div>
   {% endif %}
 
     <!-- Receipt Status Summary Badges -->
@@ -251,7 +266,7 @@
                 <p class="text-muted small mb-1"><i class="bi bi-calendar-check me-1"></i>Προθεσμία Υποβολής</p>
                 <p class="fw-bold">
                   {% if rfq.submit_deadline %}
-                    {{ rfq.submit_deadline.strftime('%d/%m/%Y %H:%M') }}
+                    {{ rfq.submit_deadline.strftime('%d/%m/%Y') }}
                   {% else %}
                     -
                   {% endif %}
@@ -260,6 +275,10 @@
               <div class="col-md-6">
                 <p class="text-muted small mb-1"><i class="bi bi-truck me-1"></i>Τόπος Παράδοσης</p>
                 <p class="fw-bold">{{ rfq.delivery_location or '-' }}</p>
+              </div>
+              <div class="col-12">
+                <p class="text-muted small mb-1"><i class="bi bi-journal-text me-1"></i>Λεπτομέρειες Ζήτησης</p>
+                <p class="mb-0" style="white-space: pre-wrap; line-height: 1.6;">{{ rfq.description or 'Δεν υπάρχουν πρόσθετες λεπτομέρειες για τη ζήτηση.' }}</p>
               </div>
               <div class="col-md-6">
                 <p class="text-muted small mb-1"><i class="bi bi-calendar me-1"></i>Ημερομηνία Παράδοσης</p>
@@ -270,6 +289,16 @@
                     -
                   {% endif %}
                 </p>
+              </div>
+              <div class="col-12">
+                <p class="text-muted small mb-1"><i class="bi bi-paperclip me-1"></i>Συνημμένο Αρχείο Ζήτησης</p>
+                {% if rfq.documents %}
+                  <a href="{{ url_for('main.download_file', filename=rfq.documents) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-download me-1"></i>{{ display_attachment_name(rfq.documents) }}
+                  </a>
+                {% else %}
+                  <p class="fw-bold mb-0">-</p>
+                {% endif %}
               </div>
             </div>
           </div>
@@ -282,14 +311,14 @@
           </div>
           <div class="card-body p-4">
             <div class="table-responsive">
-              <table class="table align-middle" style="margin-bottom: 0;">
+              <table class="table align-middle pricing-table" style="margin-bottom: 0;">
                 <thead class="table-light">
                   <tr style="height: 55px; vertical-align: middle;">
                     <th class="text-start align-middle" style="padding: 12px 20px;">Περιγραφή Είδους</th>
                     <th class="text-center align-middle" style="width: 100px; padding: 12px 16px;">Ποσότητα</th>
                     <th class="text-center align-middle" style="width: 140px; padding: 12px 16px;">Τιμή Μον.</th>
                     <th class="text-center align-middle" style="width: 140px; padding: 12px 16px;">Υπολογ.</th>
-                    <th class="text-center align-middle" style="width: 160px; padding: 12px 16px;">Έκπτωση</th>
+                    <th class="text-center align-middle pricing-discount-col" style="width: 210px; padding: 12px 12px;">Έκπτωση</th>
                     <th class="text-end align-middle" style="width: 130px; padding: 12px 20px;">Σύνολο</th>
                   </tr>
                 </thead>
@@ -314,21 +343,21 @@
                       <td class="text-center fw-bold" style="vertical-align: middle; padding: 12px 8px; font-size: 1.02em; border-right: 1px solid #e0e0e0;">
                         <span class="item-subtotal" data-item="{{ item.id }}" style="font-size: 1.05em; font-weight: 600; color: #333333;">€ 0.00</span>
                       </td>
-                      <td style="vertical-align: middle; padding: 10px 8px; border-right: 1px solid #e0e0e0;">
-                        <div class="input-group justify-content-center" style="display: flex; align-items: center; gap: 0; height: 100%;">
-                          <input type="number" step="0.01" min="0" class="form-control text-center item-discount" 
-                                 name="item_discount_{{ item.id }}" placeholder="0"
-                                 data-item-id="{{ item.id }}"
-                                 oninput="updatePricing()"
-                                 style="width: 80px; height: 100%; font-size: 1.05em; font-weight: 500; border: 1px solid #ccc; border-right: none; padding: 8px 6px;">
+                      <td class="pricing-discount-col" style="vertical-align: middle; padding: 10px 6px; border-right: 1px solid #e0e0e0;">
+                        <div class="pricing-discount-group" style="display: grid; grid-template-columns: 38px minmax(0, 1fr); align-items: stretch; width: 100%; max-width: 165px; height: 38px; min-width: 0; margin: 0 auto;">
                           <select class="form-select item-discount-type" 
                                   name="item_discount_type_{{ item.id }}"
                                   data-item-id="{{ item.id }}"
                                   onchange="updatePricing()"
-                                  style="width: 55px; height: 100%; font-size: 0.95em; font-weight: 500; padding: 8px 6px; border: 1px solid #ccc; border-left: none; background-color: #ffffff;">
+                                  style="width: 38px; min-width: 38px; max-width: 38px; height: 38px; font-size: 0.92em; font-weight: 700; padding: 0 10px 0 6px; border: 1px solid #ccc; border-right: none; background-color: #ffffff; text-align: center; border-top-right-radius: 0; border-bottom-right-radius: 0; appearance: none; -webkit-appearance: none; -moz-appearance: none; background-image: linear-gradient(45deg, transparent 50%, #6c757d 50%), linear-gradient(135deg, #6c757d 50%, transparent 50%); background-position: calc(100% - 8px) 15px, calc(100% - 4px) 15px; background-size: 4px 4px, 4px 4px; background-repeat: no-repeat;">
                             <option value="pct" selected>%</option>
                             <option value="amt">€</option>
                           </select>
+                          <input type="number" step="0.01" min="0" class="form-control text-center item-discount" 
+                                 name="item_discount_{{ item.id }}" placeholder="0"
+                                 data-item-id="{{ item.id }}"
+                                 oninput="updatePricing()"
+                                 style="width: 100%; min-width: 0; height: 38px; font-size: 1.05em; font-weight: 500; border: 1px solid #ccc; border-left: none; padding: 6px 10px; box-sizing: border-box; border-top-left-radius: 0; border-bottom-left-radius: 0;">
                         </div>
                       </td>
                       <td class="text-end fw-bold" style="vertical-align: middle; padding: 12px 20px; font-size: 1.05em; border-left: 1px solid #e0e0e0;">
@@ -379,11 +408,11 @@
                 <label class="form-label fw-semibold">Συνολική Έκπτωση</label>
                 <div class="input-group">
                   <input type="number" step="0.01" min="0" class="form-control" id="discount_value"
-                         name="overall_discount_val" placeholder="0" value="{{ bid.overall_discount_pct or '' }}" oninput="updatePricing()">
+                         name="overall_discount_val" placeholder="0" value="{{ draft_overall_discount_val if draft_overall_discount_val is not none else (bid.overall_discount_pct if bid and bid.overall_discount_pct is not none else '') }}" oninput="updatePricing()">
                   <select class="form-select" id="discount_type" name="overall_discount_type" 
                           style="max-width: 80px;" onchange="updatePricing()">
-                    <option value="pct" {{ 'selected' if not bid.overall_discount_type or bid.overall_discount_type == 'pct' }}>%</option>
-                    <option value="amt" {{ 'selected' if bid.overall_discount_type == 'amt' }}>€</option>
+                    <option value="pct" {{ 'selected' if (draft_overall_discount_type or (bid.overall_discount_type if bid and bid.overall_discount_type else 'pct')) == 'pct' }}>%</option>
+                    <option value="amt" {{ 'selected' if (draft_overall_discount_type or (bid.overall_discount_type if bid and bid.overall_discount_type else 'pct')) == 'amt' }}>€</option>
                   </select>
                 </div>
                 <small class="text-muted">Εφαρμόζεται στο σύνολο</small>
@@ -391,7 +420,7 @@
               <div class="col-md-6">
                 <label class="form-label fw-semibold"><i class="bi bi-truck me-1"></i>Μεταφορικά (€)</label>
                 <input type="number" step="0.01" min="0" class="form-control" 
-                       name="shipping_cost" placeholder="0.00" oninput="updatePricing()">
+                       name="shipping_cost" placeholder="0.00" value="{{ draft_shipping_cost if draft_shipping_cost is not none else (bid.shipping_cost if bid and bid.shipping_cost is not none else '') }}" oninput="updatePricing()">
                 <small class="text-muted">Δαπάνες αποστολής</small>
               </div>
             </div>
@@ -409,24 +438,35 @@
                 <label class="form-label fw-semibold">Τεχνική Προσφορά / Φυλλάδιο (Προαιρετικό)</label>
                 <input type="file" class="form-control" name="document" 
                        accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.png,.jpg,.jpeg">
+                  {% if draft_document_name or (bid and bid.documents) %}
+                <div class="mt-2 p-3 border rounded bg-light">
+                  <div class="d-flex align-items-center justify-content-between gap-3">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="bi bi-file-earmark-pdf text-danger fs-5"></i>
+                      <div>
+                        <div class="fw-semibold">{{ display_attachment_name(draft_document_name or bid.documents) }}</div>
+                        <small class="text-muted">Τρέχον αρχείο</small>
+                      </div>
+                    </div>
+                    <a href="{{ url_for('main.download_file', filename=draft_document_name or bid.documents) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                      <i class="bi bi-download me-1"></i>Λήψη
+                    </a>
+                  </div>
+                </div>
+                {% endif %}
                 <small class="text-muted d-block mt-2">
                   PDF, Word, Excel, εικόνες ή ZIP. Μέγιστο: 10MB
                 </small>
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold"><i class="bi bi-calendar me-1"></i>Προτεινόμενη Ημερομηνία Παράδοσης</label>
-                <input type="date" class="form-control" name="proposed_delivery_date">
+                <input type="date" class="form-control" name="proposed_delivery_date" value="{{ draft_proposed_delivery_date if draft_proposed_delivery_date is not none else (bid.proposed_delivery_date.strftime('%Y-%m-%d') if bid and bid.proposed_delivery_date else '') }}">
                 <small class="text-muted">Πότε μπορείτε να δώσετε τα είδη</small>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-semibold"><i class="bi bi-clock me-1"></i>Ημέρες Παράδοσης</label>
-                <input type="number" min="1" class="form-control" name="delivery_days" value="7" placeholder="7">
-                <small class="text-muted">Εργάσιμες ημέρες</small>
               </div>
               <div class="col-12">
                 <label class="form-label fw-semibold">Σχόλια & Παρατηρήσεις</label>
                 <textarea class="form-control" name="notes" rows="3" 
-                          placeholder="Γράψτε τυχόν ειδικές συνθήκες ή παρατηρήσεις..."></textarea>
+                          placeholder="Γράψτε τυχόν ειδικές συνθήκες ή παρατηρήσεις...">{{ draft_notes if draft_notes is not none else (bid.notes if bid and bid.notes else '') }}</textarea>
                 <small class="text-muted">Μέγιστο 500 χαρακτήρες</small>
               </div>
             </div>
@@ -438,12 +478,25 @@
           <a href="{{ url_for('supplier.dashboard') }}" class="btn btn-outline-secondary">
             <i class="bi bi-x-circle me-1"></i>Ακύρωση
           </a>
+          {% if reopen_mode %}
           <button type="submit" name="action" value="save_draft" class="btn btn-outline-primary">
             <i class="bi bi-arrow-clockwise me-1"></i>Αποθήκευση Προσχεδίου
           </button>
           <button type="submit" name="action" value="submit" class="btn btn-success">
             <i class="bi bi-send-check me-1"></i>Υποβολή Προσφοράς
           </button>
+          {% elif bid and bid.status == 'rejected' %}
+          <button type="submit" name="action" value="reopen_draft" class="btn btn-warning">
+            <i class="bi bi-unlock me-1"></i>Υποβολή Ξανά
+          </button>
+          {% else %}
+          <button type="submit" name="action" value="save_draft" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-clockwise me-1"></i>Αποθήκευση Προσχεδίου
+          </button>
+          <button type="submit" name="action" value="submit" class="btn btn-success">
+            <i class="bi bi-send-check me-1"></i>Υποβολή Προσφοράς
+          </button>
+          {% endif %}
         </div>
       </form>
       
@@ -511,16 +564,15 @@ function prepareFormData(e) {
   const container = document.getElementById('bid-items-container');
   container.innerHTML = ''; // Clear previous data
   
-  // Collect delivery days and overall discount/shipping
-  const deliveryDays = document.querySelector('input[name="delivery_days"]')?.value || '7';
-  const overallDiscount = document.querySelector('input[name="discount_value"]')?.value || '0';
-  const overallDiscountType = document.querySelector('select[name="discount_type"]')?.value || 'pct';
+  // Collect overall discount/shipping
+  const overallDiscount = document.querySelector('input[name="overall_discount_val"]')?.value || '0';
+  const overallDiscountType = document.querySelector('select[name="overall_discount_type"]')?.value || 'pct';
   const shipping = document.querySelector('input[name="shipping_cost"]')?.value || '0';
   const proposedDate = document.querySelector('input[name="proposed_delivery_date"]')?.value || '';
   
   // Add overall fields
-  container.innerHTML += `<input type="hidden" name="discount_value" value="${overallDiscount}">`;
-  container.innerHTML += `<input type="hidden" name="discount_type" value="${overallDiscountType}">`;
+  container.innerHTML += `<input type="hidden" name="overall_discount_val" value="${overallDiscount}">`;
+  container.innerHTML += `<input type="hidden" name="overall_discount_type" value="${overallDiscountType}">`;
   container.innerHTML += `<input type="hidden" name="shipping_cost" value="${shipping}">`;
   container.innerHTML += `<input type="hidden" name="proposed_delivery_date" value="${proposedDate}">`;
   
@@ -542,7 +594,6 @@ function prepareFormData(e) {
     container.innerHTML += `<input type="hidden" name="price[]" value="${price}">`;
     container.innerHTML += `<input type="hidden" name="discount[]" value="${discount}">`;
     container.innerHTML += `<input type="hidden" name="discount_type[]" value="${discountType}">`;
-    container.innerHTML += `<input type="hidden" name="delivery_days[]" value="${deliveryDays}">`;
   });
   
   // Move hidden fields into form
@@ -576,9 +627,28 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   // Prefill discount
-  {% if bid %}
-    const discountElem = document.getElementById('discount_value');
-    const discountTypeElem = document.getElementById('discount_type');
+  {% if reopen_mode %}
+    const draftDiscountElem = document.querySelector('input[name="overall_discount_val"]');
+    const draftDiscountTypeElem = document.querySelector('select[name="overall_discount_type"]');
+    if (draftDiscountElem && '{{ draft_overall_discount_val if draft_overall_discount_val is not none else "" }}') {
+      draftDiscountElem.value = parseFloat('{{ draft_overall_discount_val if draft_overall_discount_val is not none else 0 }}').toFixed(2);
+    }
+    if (draftDiscountTypeElem && '{{ draft_overall_discount_type or "pct" }}') {
+      draftDiscountTypeElem.value = '{{ draft_overall_discount_type or "pct" }}';
+    }
+
+    const draftShippingElem = document.querySelector('input[name="shipping_cost"]');
+    if (draftShippingElem && '{{ draft_shipping_cost if draft_shipping_cost is not none else "" }}') {
+      draftShippingElem.value = parseFloat('{{ draft_shipping_cost if draft_shipping_cost is not none else 0 }}').toFixed(2);
+    }
+
+    const draftDateElem = document.querySelector('input[name="proposed_delivery_date"]');
+    if (draftDateElem && '{{ draft_proposed_delivery_date if draft_proposed_delivery_date else "" }}') {
+      draftDateElem.value = '{{ draft_proposed_delivery_date }}';
+    }
+  {% elif bid %}
+    const discountElem = document.querySelector('input[name="overall_discount_val"]');
+    const discountTypeElem = document.querySelector('select[name="overall_discount_type"]');
     if (discountElem && '{{ bid.overall_discount_pct }}') {
       discountElem.value = parseFloat('{{ bid.overall_discount_pct }}').toFixed(2);
       if (discountTypeElem) discountTypeElem.value = '{{ bid.overall_discount_type or "pct" }}';
@@ -736,6 +806,35 @@ document.addEventListener('DOMContentLoaded', updatePricing);
 .timeline .timeline-dot {
   border: 2px solid #fff;
   box-shadow: 0 0 0 3px currentColor;
+}
+
+.pricing-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.pricing-table .pricing-discount-col {
+  width: 180px;
+}
+
+.pricing-table .pricing-discount-group {
+  grid-template-columns: 38px minmax(0, 1fr);
+  max-width: 165px;
+  height: 38px;
+}
+
+.pricing-table .item-discount {
+  min-width: 0;
+  height: 38px;
+}
+
+.pricing-table .item-discount-type {
+  min-width: 38px;
+  max-width: 38px;
+  width: 38px;
+  height: 38px;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 /* Status badge colors */

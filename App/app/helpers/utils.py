@@ -3,6 +3,8 @@ Helper Utilities Module
 Pagination, search, sorting, formatting, export functions
 """
 import csv
+import os
+import re
 from io import StringIO, BytesIO
 from datetime import datetime
 from decimal import Decimal
@@ -170,6 +172,52 @@ def validate_decimal(value, max_digits=12, decimal_places=2):
     except:
         return False
 
+# ============= FILE NAME HELPERS =============
+
+def sanitize_upload_filename(filename):
+    """Keep Unicode chars but remove unsafe filesystem/path characters."""
+    safe_name = os.path.basename((filename or "").strip())
+    if not safe_name:
+        return "file"
+
+    safe_name = safe_name.replace("\x00", "")
+    safe_name = re.sub(r'[<>:"/\\\\|?*]+', "_", safe_name)
+    safe_name = re.sub(r'\s+', ' ', safe_name).strip()
+
+    if safe_name in {"", ".", ".."}:
+        return "file"
+
+    if len(safe_name) > 240:
+        base, ext = os.path.splitext(safe_name)
+        keep_base = max(1, 240 - len(ext))
+        safe_name = f"{base[:keep_base]}{ext}"
+
+    return safe_name
+
+
+def build_stored_upload_filename(filename, draft=False):
+    """Build storage filename with timestamp prefix while preserving readable name."""
+    safe_name = sanitize_upload_filename(filename)
+    stamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    prefix = "draft_" if draft else ""
+    return f"{prefix}{stamp}__{safe_name}"
+
+
+def display_attachment_name(stored_filename):
+    """Return user-friendly attachment name by removing known storage prefixes."""
+    if not stored_filename:
+        return ""
+
+    name = os.path.basename(str(stored_filename))
+    name = re.sub(r'^(?:draft_)?\d{14}__', '', name)
+    name = re.sub(r'^(?:draft_)?\d{14}_', '', name)
+    name = re.sub(r'^(?:draft_)?\d{14}---', '', name)
+
+    base, ext = os.path.splitext(name)
+    if base.isdigit():
+        return f"Έγγραφο {base}"
+    return name
+
 # ============= HELPERS FOR TEMPLATES =============
 
 def get_status_badge(status):
@@ -197,3 +245,30 @@ def get_bid_status_badge(status):
         'withdrawn': 'badge bg-dark'
     }
     return badge_map.get(status, 'badge bg-secondary')
+
+
+def get_status_display_name(status):
+    """Return a canonical English display label for RFQ or bid statuses."""
+    if not status:
+        return 'Unknown'
+
+    status_key = str(getattr(status, 'value', status)).strip().lower()
+
+    display_map = {
+        'pending': 'Pending',
+        'open': 'Open',
+        'closed': 'Closed',
+        'received': 'Received',
+        'denied': 'Denied',
+        'cancelled': 'Cancelled',
+        'pending_final_approval': 'Awaiting budget approval',
+        'draft': 'Draft',
+        'submitted': 'Submitted',
+        'accepted': 'Accepted',
+        'rejected': 'Rejected',
+        'withdrawn': 'Withdrawn',
+        'reopen': 'Reopen',
+        'reopened': 'Reopen'
+    }
+
+    return display_map.get(status_key, status_key.replace('_', ' ').title())

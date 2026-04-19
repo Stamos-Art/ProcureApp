@@ -413,10 +413,11 @@
             font-size: var(--text-sm);
         }
     </style>
+    <link href="{{ url_for('static', filename='css/dashboard-unified.css') }}" rel="stylesheet">
     
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="dashboard-unified">
     <!-- ═════════════════════════════════════════════════════════════════ -->
     <!-- PREMIUM NAVBAR                                                   -->
     <!-- ═════════════════════════════════════════════════════════════════ -->

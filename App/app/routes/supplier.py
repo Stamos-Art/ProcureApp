@@ -2,17 +2,168 @@
 Supplier Routes
 Supplier dashboard, bidding, and bid management
 """
+import json
+
 from flask import Blueprint, request, render_template, redirect, url_for, flash, session
 from datetime import datetime
+from sqlalchemy import or_
 from decimal import Decimal
 
 from models import (
-    db, RequestRFQ, Bid, BidLine, RequestItem, ItemAward, ItemReceipt, RFQStatus, BidStatus
+    db, RequestRFQ, Bid, BidLine, BidRevision, RequestItem, ItemAward, ItemReceipt, RFQStatus, BidStatus
 )
 from app.auth import require_role, log_action
+from app.helpers.utils import build_stored_upload_filename
 from app.services.status_service import update_bid_status, StatusTransitionError
 
 supplier_bp = Blueprint('supplier', __name__, url_prefix='/supplier')
+
+
+def _parse_multi_values(args, key):
+    """Parse repeated or comma-separated query values into a unique lowercase list."""
+    values = []
+    for raw_value in args.getlist(key):
+        if not raw_value:
+            continue
+        for part in str(raw_value).split(','):
+            cleaned = part.strip().lower()
+            if cleaned and cleaned not in values:
+                values.append(cleaned)
+    return values
+
+def _get_supplier_rfq_status(rfq, bid, reopen_bid_ids):
+    """Return the supplier-facing status label key for an RFQ row."""
+    if not bid:
+        if rfq.status in [RFQStatus.CLOSED, RFQStatus.RECEIVED]:
+            return 'no_bid'
+        return 'open'
+
+    if bid.status == BidStatus.REOPENED:
+        return 'reopen'
+    if bid.status == BidStatus.SUBMITTED:
+        return 'submitted'
+    if bid.status == BidStatus.ACCEPTED:
+        return 'accepted'
+    if bid.status == BidStatus.REJECTED:
+        return 'reopen' if bid.id in reopen_bid_ids else 'rejected'
+    if bid.status == BidStatus.DRAFT:
+        return 'draft'
+    if bid.status == BidStatus.WITHDRAWN:
+        return 'rejected'
+
+    return 'open'
+
+
+def _build_reopen_payload_from_request(form, files, existing_payload=None):
+    """Build a serializable reopen-draft payload from request data."""
+    payload = existing_payload.copy() if existing_payload else {}
+    payload["notes"] = form.get("notes", "")
+    payload["overall_discount_val"] = form.get("overall_discount_val", "0")
+    payload["overall_discount_type"] = form.get("overall_discount_type", "pct")
+    payload["shipping_cost"] = form.get("shipping_cost", "0")
+    payload["proposed_delivery_date"] = form.get("proposed_delivery_date", "")
+
+    item_ids = form.getlist("item_id[]")
+    prices = form.getlist("price[]")
+    discounts = form.getlist("discount[]")
+    discount_types = form.getlist("discount_type[]")
+    qtys = form.getlist("qty[]")
+
+    items = []
+    for i, item_id in enumerate(item_ids):
+        items.append({
+            "item_id": item_id,
+            "qty": qtys[i] if i < len(qtys) else "",
+            "price": prices[i] if i < len(prices) else "",
+            "discount": discounts[i] if i < len(discounts) else "",
+            "discount_type": discount_types[i] if i < len(discount_types) else "pct",
+        })
+    payload["items"] = items
+
+    file = files.get("document")
+    if file and file.filename:
+        from flask import current_app
+        import os
+
+        doc_filename = build_stored_upload_filename(file.filename, draft=True)
+        file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], doc_filename))
+        payload["document"] = doc_filename
+
+    return payload
+
+
+def _apply_reopen_payload_to_bid(bid, payload):
+    """Apply a reopen-draft payload to an actual bid and its lines."""
+    bid.notes = payload.get("notes", "")
+    bid.overall_discount_pct = Decimal(payload.get("overall_discount_val") or 0)
+    bid.overall_discount_type = payload.get("overall_discount_type", "pct")
+    bid.shipping_cost = Decimal(payload.get("shipping_cost") or 0)
+
+    proposed_date_str = payload.get("proposed_delivery_date")
+    if proposed_date_str:
+        bid.proposed_delivery_date = datetime.strptime(proposed_date_str, "%Y-%m-%d")
+    else:
+        bid.proposed_delivery_date = None
+
+    if payload.get("document"):
+        bid.documents = payload.get("document")
+
+    BidLine.query.filter_by(bid_id=bid.id).delete()
+
+    subtotal = Decimal(0)
+    discount_total = Decimal(0)
+    for item_data in payload.get("items", []):
+        req_item = RequestItem.query.get(item_data.get("item_id"))
+        if not req_item:
+            continue
+
+        try:
+            unit_price = Decimal(item_data.get("price") or 0)
+            discount_val = Decimal(item_data.get("discount") or 0)
+            discount_type = item_data.get("discount_type") or "pct"
+            qty = Decimal(item_data.get("qty") or req_item.quantity)
+        except Exception:
+            continue
+
+        if discount_type == 'pct':
+            discount_amount = (unit_price * qty * discount_val) / 100
+        else:
+            discount_amount = discount_val
+
+        line_total = (unit_price * qty) - discount_amount
+        db.session.add(BidLine(
+            bid_id=bid.id,
+            request_item_id=req_item.id,
+            description=req_item.description,
+            unit=req_item.unit,
+            qty=qty,
+            unit_price=unit_price,
+            discount_pct=discount_val if discount_type == 'pct' else Decimal(0),
+            discount_amount=discount_amount if discount_type == 'amt' else Decimal(0),
+            discount_type=discount_type,
+            line_total=line_total,
+            delivery_days=7
+        ))
+        subtotal += (unit_price * qty)
+        discount_total += discount_amount
+
+    if bid.shipping_cost and Decimal(bid.shipping_cost or 0) > 0:
+        db.session.add(BidLine(
+            bid_id=bid.id,
+            request_item_id=None,
+            is_combo=True,
+            description="Μεταφορικά / Έξοδα Αποστολής",
+            unit="υπηρεσία",
+            qty=Decimal(1),
+            unit_price=Decimal(bid.shipping_cost),
+            discount_pct=Decimal(0),
+            discount_amount=Decimal(0),
+            discount_type='pct',
+            line_total=Decimal(bid.shipping_cost)
+        ))
+
+    bid.subtotal = subtotal
+    bid.discount_total = discount_total
 
 @supplier_bp.route("/")
 @require_role("supplier")
@@ -22,7 +173,12 @@ def dashboard():
     
     page = request.args.get('page', 1, type=int)
     per_page = 10
-    status_filter = request.args.get('status', 'all').strip().lower()
+    status_filter = (request.args.get('status', 'all') or 'all').strip().lower()
+    q = (request.args.get('q') or '').strip()
+    bid_state_filters = [v for v in _parse_multi_values(request.args, 'bid_state') if v in {'submitted', 'draft', 'reopen', 'rejected', 'no_bid'}]
+    deadline_filters = [v for v in _parse_multi_values(request.args, 'deadline') if v in {'week', 'month', 'quarter', 'older'}]
+    if status_filter not in {'all', 'open', 'submitted', 'accepted', 'rejected', 'reopen', 'no_bid', 'draft'}:
+        status_filter = 'all'
     
     # Get current supplier info
     username = session.get('username')
@@ -38,40 +194,111 @@ def dashboard():
     
     # Filter out DENIED and CANCELLED RFQs - suppliers shouldn't see them
     qry = qry.filter(~RequestRFQ.status.in_([RFQStatus.DENIED, RFQStatus.CANCELLED]))
-    
-    if status_filter and status_filter != 'all':
-        qry = qry.filter_by(status=status_filter)
-    
+
+    if q:
+        like = f"%{q}%"
+        qry = qry.filter(or_(
+            RequestRFQ.title.ilike(like),
+            RequestRFQ.description.ilike(like)
+        ))
+
     all_rfqs = qry.order_by(RequestRFQ.created_at.desc()).all()
-    
-    # Get all bids from this supplier
+
     supplier_bids = Bid.query.filter_by(
         supplier_id=supplier_user.id if supplier_user else None
-    ).all() if supplier_user else []
+    ).order_by(Bid.created_at.desc(), Bid.id.desc()).all() if supplier_user else []
+
+    reopen_bid_ids = {
+        r.bid_id for r in BidRevision.query.filter(
+            BidRevision.bid_id.in_([b.id for b in supplier_bids])
+        ).all()
+    } if supplier_bids else set()
     
     # Create bids map for quick lookup
-    bids_map = {b.request_id: b for b in supplier_bids}
+    bids_map = {}
+    for bid in supplier_bids:
+        if bid.request_id not in bids_map:
+            bids_map[bid.request_id] = bid
+
+    # Suppliers should see awards only after final RFQ submission/closure
+    awards = ItemAward.query.join(
+        RequestRFQ, ItemAward.request_id == RequestRFQ.id
+    ).filter(
+        ItemAward.supplier_name == supplier_name,
+        RequestRFQ.status.in_([RFQStatus.CLOSED, RFQStatus.RECEIVED])
+    ).all()
+    award_request_ids = {a.request_id for a in awards}
+
+    # Apply status filter semantics for supplier workflow
+    filtered_rfqs = list(all_rfqs)
+    if status_filter == 'open':
+        filtered_rfqs = [
+            r for r in filtered_rfqs
+            if r.status in [RFQStatus.OPEN, RFQStatus.PENDING_FINAL_APPROVAL]
+        ]
+    elif status_filter == 'awarded':
+        filtered_rfqs = [r for r in filtered_rfqs if r.id in award_request_ids]
+    elif status_filter == 'pending':
+        filtered_rfqs = [
+            r for r in filtered_rfqs
+            if r.status in [RFQStatus.OPEN, RFQStatus.PENDING_FINAL_APPROVAL]
+            and (r.id not in bids_map or bids_map[r.id].status != BidStatus.SUBMITTED)
+        ]
+
+    if bid_state_filters:
+        def _matches_bid_state(rfq):
+            bid = bids_map.get(rfq.id)
+            states = set()
+            if not bid:
+                states.add('no_bid')
+            elif bid.status == BidStatus.REOPENED:
+                states.add('reopen')
+            elif bid.status == BidStatus.REJECTED and bid.id in reopen_bid_ids:
+                states.add('reopen')
+            elif bid.status == BidStatus.SUBMITTED:
+                states.add('submitted')
+            elif bid.status == BidStatus.REJECTED:
+                states.add('rejected')
+            else:
+                states.add('draft')
+            return any(state in states for state in bid_state_filters)
+
+        filtered_rfqs = [r for r in filtered_rfqs if _matches_bid_state(r)]
+
+    if deadline_filters:
+        today = datetime.utcnow().date()
+
+        def _deadline_bucket(rfq):
+            if not rfq.submit_deadline:
+                return 'older'
+            days_until_deadline = (rfq.submit_deadline.date() - today).days
+            if days_until_deadline <= 7:
+                return 'week'
+            if days_until_deadline <= 30:
+                return 'month'
+            if days_until_deadline <= 90:
+                return 'quarter'
+            return 'older'
+
+        filtered_rfqs = [r for r in filtered_rfqs if _deadline_bucket(r) in deadline_filters]
     
     # Calculate statistics
     pending_count = 0
     submitted_count = 0
-    awards_list = []
     bid_values = []
     
-    for rfq in all_rfqs:
+    for rfq in filtered_rfqs:
         if rfq.id in bids_map:
             bid = bids_map[rfq.id]
-            if bid.status == 'submitted':
+            if bid.status == BidStatus.SUBMITTED:
                 submitted_count += 1
             if bid.price:
                 bid_values.append(float(bid.price))
         else:
             if rfq.status in [RFQStatus.OPEN, RFQStatus.PENDING_FINAL_APPROVAL]:
                 pending_count += 1
-    
-    # Get awards for this supplier
-    awards = ItemAward.query.filter_by(supplier_name=supplier_name).all()
-    awards_count = len(awards)
+
+    awards_count = len([rfq for rfq in filtered_rfqs if rfq.id in award_request_ids])
     total_awards_value = Decimal(0)
     for award in awards:
         total_awards_value += (award.line_total or Decimal(0))
@@ -81,17 +308,24 @@ def dashboard():
     win_rate = (awards_count / submitted_count * 100) if submitted_count > 0 else 0
     
     # Pagination
-    total_items = len(all_rfqs)
+    total_items = len(filtered_rfqs)
     total_pages = (total_items + per_page - 1) // per_page
     start_idx = (page - 1) * per_page
-    paginated_rfqs = all_rfqs[start_idx : start_idx + per_page]
+    paginated_rfqs = filtered_rfqs[start_idx : start_idx + per_page]
+
+    awarded_rfqs = [rfq for rfq in paginated_rfqs if rfq.id in award_request_ids]
     
     return render_template("supplier_dash_improved.html",
                          rfqs=paginated_rfqs,
+                         awarded_rfqs=awarded_rfqs,
                          status_filter=status_filter,
+                         q=q,
+                         bid_state_filters=bid_state_filters,
+                         deadline_filters=deadline_filters,
                          page=page,
                          total_pages=total_pages,
                          bids_map=bids_map,
+                         reopen_bid_ids=reopen_bid_ids,
                          pending_count=pending_count,
                          submitted_count=submitted_count,
                          awards_count=awards_count,
@@ -117,23 +351,38 @@ def history():
     bids = Bid.query.filter_by(
         supplier_id=supplier_user.id if supplier_user else None
     ).all() if supplier_user else []
+
+    reopen_bid_ids = {
+        r.bid_id for r in BidRevision.query.filter(
+            BidRevision.bid_id.in_([b.id for b in bids])
+        ).all()
+    } if bids else set()
     
     page = request.args.get('page', 1, type=int)
     per_page = 10
     status_filter = request.args.get('status', 'all').strip().lower()
     
-    # Get all awards for this supplier once (reuse for both 'won' and 'lost' filters)
-    all_awards = ItemAward.query.filter_by(supplier_name=supplier_name).all() if status_filter in ['won', 'lost'] else []
+    # Awards are visible only for finalized RFQs
+    all_awards = ItemAward.query.join(
+        RequestRFQ, ItemAward.request_id == RequestRFQ.id
+    ).filter(
+        ItemAward.supplier_name == supplier_name,
+        RequestRFQ.status.in_([RFQStatus.CLOSED, RFQStatus.RECEIVED])
+    ).all() if status_filter in ['won', 'lost'] else []
     award_bid_ids = [a.bid_id for a in all_awards] if all_awards else []
     
     # Filter by status if requested
     if status_filter and status_filter != 'all':
-        if status_filter == 'won':
-            bids = [b for b in bids if b.id in award_bid_ids]
-        elif status_filter == 'lost':
-            bids = [b for b in bids if b.id not in award_bid_ids and b.status == 'submitted']
-        elif status_filter == 'pending':
-            bids = [b for b in bids if b.status != 'submitted']
+        if status_filter == 'submitted':
+            bids = [b for b in bids if b.status == 'submitted']
+        elif status_filter == 'accepted':
+            bids = [b for b in bids if b.status == 'accepted']
+        elif status_filter == 'rejected':
+            bids = [b for b in bids if b.status == 'rejected' and b.id not in reopen_bid_ids]
+        elif status_filter == 'reopen':
+            bids = [b for b in bids if b.id in reopen_bid_ids or b.status == BidStatus.REOPENED]
+        elif status_filter == 'draft':
+            bids = [b for b in bids if b.status == 'draft' and b.id not in reopen_bid_ids]
     
     # Calculate analytics
     total_bids = len(bids)
@@ -141,9 +390,12 @@ def history():
     
     # Get won bids
     bid_ids = [b.id for b in bids]
-    won_awards = ItemAward.query.filter(
+    won_awards = ItemAward.query.join(
+        RequestRFQ, ItemAward.request_id == RequestRFQ.id
+    ).filter(
         ItemAward.bid_id.in_(bid_ids),
-        ItemAward.supplier_name == supplier_name
+        ItemAward.supplier_name == supplier_name,
+        RequestRFQ.status.in_([RFQStatus.CLOSED, RFQStatus.RECEIVED])
     ).all() if bid_ids else []
     won_count = len(won_awards)
     
@@ -172,13 +424,20 @@ def history():
     paginated_bids = bids[start_idx : start_idx + per_page]
     
     # Get award mapping
-    award_map = {a.bid_id: a for a in ItemAward.query.filter_by(supplier_name=supplier_name).all()}
+    award_map = {
+        a.bid_id: a
+        for a in ItemAward.query.join(RequestRFQ, ItemAward.request_id == RequestRFQ.id).filter(
+            ItemAward.supplier_name == supplier_name,
+            RequestRFQ.status.in_([RFQStatus.CLOSED, RFQStatus.RECEIVED])
+        ).all()
+    }
     
     return render_template("supplier_history.html",
                          bids=paginated_bids,
                          page=page,
                          total_pages=total_pages,
                          status_filter=status_filter,
+                         reopen_bid_ids=reopen_bid_ids,
                          analytics={
                              'total_bids': total_bids,
                              'submitted_bids': len(submitted_bids),
@@ -227,7 +486,7 @@ def bid(req_id):
     existing_bid = Bid.query.filter_by(
         request_id=req_id,
         supplier_id=supplier_user.id if supplier_user else None
-    ).first()
+    ).order_by(Bid.created_at.desc(), Bid.id.desc()).first()
     
     if request.method == "POST":
         if is_locked:
@@ -246,31 +505,64 @@ def bid(req_id):
             db.session.add(existing_bid)
             db.session.flush()
         
-        # Update bid
-        existing_bid.notes = request.form.get("notes", "")
+        # Capture the action first; actual bid fields are applied only in the persisted path.
         action = request.form.get("action")
-        
-        # Update bid status with validation ONLY if status is changing
-        if action == "submit" and existing_bid.status == BidStatus.DRAFT:
-            try:
-                result = update_bid_status(existing_bid, BidStatus.SUBMITTED, session.get('role'))
-                if not result['success']:
-                    flash(f"Σφάλμα: {result['message']}", "danger")
-                    return redirect(url_for('supplier.bid', req_id=req_id))
-            except Exception as e:
-                flash(f"Σφάλμα κατα την υποβολή: {str(e)}", "danger")
-                return redirect(url_for('supplier.bid', req_id=req_id))
-        elif action == "save_draft":
-            # Save as draft regardless of current status
-            if existing_bid.status == BidStatus.DRAFT:
-                # Already draft, just update
-                pass
+
+        reopen_revision = BidRevision.query.filter_by(bid_id=existing_bid.id).first() if existing_bid else None
+
+        if action == "reopen_draft" and existing_bid.status == BidStatus.REJECTED:
+            payload = _build_reopen_payload_from_request(request.form, request.files, json.loads(reopen_revision.payload) if reopen_revision else None)
+            if reopen_revision:
+                reopen_revision.payload = json.dumps(payload)
             else:
-                # Already submitted, don't downgrade
+                reopen_revision = BidRevision(bid_id=existing_bid.id, payload=json.dumps(payload))
+                db.session.add(reopen_revision)
+            db.session.commit()
+            flash("Η προσφορά άνοιξε ξανά για επεξεργασία. Παραμένει μη ορατή στην εταιρία μέχρι το τελικό submit.", "info")
+            return redirect(url_for('supplier.bid', req_id=req_id))
+
+        if reopen_revision and action == "save_draft":
+            payload = _build_reopen_payload_from_request(request.form, request.files, json.loads(reopen_revision.payload))
+            reopen_revision.payload = json.dumps(payload)
+            db.session.commit()
+            flash("Το προσχέδιο αποθηκεύτηκε. Η εταιρία δεν βλέπει ακόμη τη νέα εκδοχή.", "info")
+            return redirect(url_for('supplier.bid', req_id=req_id))
+
+        if reopen_revision and action == "submit":
+            payload = _build_reopen_payload_from_request(request.form, request.files, json.loads(reopen_revision.payload))
+            _apply_reopen_payload_to_bid(existing_bid, payload)
+            result = update_bid_status(existing_bid, BidStatus.SUBMITTED, session.get('role'))
+            if not result['success']:
+                flash(f"Σφάλμα: {result['message']}", "danger")
+                return redirect(url_for('supplier.bid', req_id=req_id))
+            existing_bid.rejection_reason = None
+            db.session.delete(reopen_revision)
+            db.session.commit()
+            log_action(req_id, f"Προσφορά από {supplier_name}: Status={existing_bid.status}")
+            flash("Η προσφορά υποβλήθηκε!", "success")
+            return redirect(url_for('supplier.bid', req_id=req_id))
+
+        elif action == "submit":
+            if existing_bid.status == BidStatus.DRAFT:
+                try:
+                    result = update_bid_status(existing_bid, BidStatus.SUBMITTED, session.get('role'))
+                    if not result['success']:
+                        flash(f"Σφάλμα: {result['message']}", "danger")
+                        return redirect(url_for('supplier.bid', req_id=req_id))
+                    # Clear previous rejection reason on successful submit.
+                    existing_bid.rejection_reason = None
+                except Exception as e:
+                    flash(f"Σφάλμα κατα την υποβολή: {str(e)}", "danger")
+                    return redirect(url_for('supplier.bid', req_id=req_id))
+            elif existing_bid.status == BidStatus.SUBMITTED:
+                # Already submitted; keep status and update bid content.
                 pass
-        elif action == "submit" and existing_bid.status != BidStatus.DRAFT:
-            # Already submitted, just update the lines
-            pass
+        elif action == "save_draft" and existing_bid.status == BidStatus.REJECTED:
+            flash("Η προσφορά παραμένει απορριφθείσα μέχρι να γίνει επανυποβολή.", "warning")
+            return redirect(url_for('supplier.bid', req_id=req_id))
+
+        # Normal persisted path (non-reopen or already-submitted edits).
+        existing_bid.notes = request.form.get("notes", "")
         
         # Overall discount
         print(f"DEBUG: Form overall_discount_val={request.form.get('overall_discount_val')}, overall_discount_type={request.form.get('overall_discount_type')}")
@@ -291,6 +583,15 @@ def bid(req_id):
             existing_bid.shipping_cost = Decimal(request.form.get("shipping_cost") or 0)
         except:
             existing_bid.shipping_cost = Decimal(0)
+
+        file = request.files.get("document")
+        if file and file.filename:
+            import os
+            from flask import current_app
+
+            doc_filename = build_stored_upload_filename(file.filename)
+            file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], doc_filename))
+            existing_bid.documents = doc_filename
         
         # Set proposed delivery date
         try:
@@ -386,8 +687,39 @@ def bid(req_id):
         return redirect(url_for('supplier.bid', req_id=req_id))
     
     # Prepare prefill data
+    reopen_revision = BidRevision.query.filter_by(bid_id=existing_bid.id).first() if existing_bid else None
+    reopen_mode = reopen_revision is not None
+    reopen_payload = json.loads(reopen_revision.payload) if reopen_revision else None
+
     item_prefill = {}
-    if existing_bid:
+    draft_notes = None
+    draft_overall_discount_val = None
+    draft_overall_discount_type = None
+    draft_shipping_cost = None
+    draft_proposed_delivery_date = None
+    draft_document_name = None
+
+    if reopen_payload:
+        for item_data in reopen_payload.get("items", []):
+            item_id = int(item_data.get("item_id")) if str(item_data.get("item_id", "")).isdigit() else item_data.get("item_id")
+            try:
+                price_value = Decimal(item_data.get("price") or 0)
+                discount_value = Decimal(item_data.get("discount") or 0)
+            except Exception:
+                price_value = Decimal(0)
+                discount_value = Decimal(0)
+            item_prefill[item_id] = {
+                'price': price_value,
+                'disc': discount_value,
+                'disc_type': item_data.get("discount_type") or "pct"
+            }
+        draft_notes = reopen_payload.get("notes")
+        draft_overall_discount_val = reopen_payload.get("overall_discount_val")
+        draft_overall_discount_type = reopen_payload.get("overall_discount_type")
+        draft_shipping_cost = reopen_payload.get("shipping_cost")
+        draft_proposed_delivery_date = reopen_payload.get("proposed_delivery_date")
+        draft_document_name = reopen_payload.get("document")
+    elif existing_bid:
         for bl in existing_bid.lines:
             if not bl.is_combo:
                 item_prefill[bl.request_item_id] = {
@@ -536,6 +868,13 @@ def bid(req_id):
                          bid=existing_bid,
                          readonly=is_locked,
                          item_prefill=item_prefill,
+                         reopen_mode=reopen_mode,
+                         draft_notes=draft_notes,
+                         draft_overall_discount_val=draft_overall_discount_val,
+                         draft_overall_discount_type=draft_overall_discount_type,
+                         draft_shipping_cost=draft_shipping_cost,
+                         draft_proposed_delivery_date=draft_proposed_delivery_date,
+                         draft_document_name=draft_document_name,
                          my_awards=my_awards,
                          my_awards_total=my_awards_total,
                          my_awards_items_subtotal_before_discount=my_awards_items_subtotal_before_discount,

@@ -73,6 +73,7 @@ def register_error_handlers(app):
 def register_context_processors(app):
     """Register context processors for templates"""
     from app.auth import phase_info, is_editable_by_current_user
+    from app.helpers.utils import display_attachment_name, get_status_display_name
     from datetime import datetime, timezone
     from flask import session
     from models import User, Notification
@@ -87,6 +88,8 @@ def register_context_processors(app):
         return dict(
             phase_info=phase_info,
             is_editable_by_current_user=is_editable_by_current_user,
+            display_attachment_name=display_attachment_name,
+            get_status_display_name=get_status_display_name,
             now=datetime.now(timezone.utc),
             unread_notifs=unread_notifs
         )

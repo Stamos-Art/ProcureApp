@@ -6,49 +6,63 @@ Validates state transitions before they occur.
 """
 
 from datetime import datetime
+from enum import Enum
 from models import RFQStatus, BidStatus
 # Note: db is imported in models.py which imports from app
+
+
+def _status_value(status):
+    if isinstance(status, Enum):
+        return status.value
+    return str(status).strip().lower() if status is not None else None
 
 
 # ============= RFQ STATE MACHINE =============
 
 RFQ_TRANSITIONS = {
-    RFQStatus.PENDING: {
-        RFQStatus.OPEN: ['chief'],                                    # Chief approves RFQ
-        RFQStatus.DENIED: ['chief'],                                   # Chief rejects RFQ
-        RFQStatus.CANCELLED: ['company', 'creator'],                  # Creator cancels before approval
+    RFQStatus.PENDING.value: {
+        RFQStatus.OPEN.value: ['chief'],                                    # Chief approves RFQ
+        RFQStatus.DENIED.value: ['chief'],                                   # Chief rejects RFQ
+        RFQStatus.CANCELLED.value: ['company', 'creator'],                  # Creator cancels before approval
     },
-    RFQStatus.OPEN: {
-        RFQStatus.CLOSED: ['company', 'chief'],                       # Auto-award (≤ limit) or Chief awards
-        RFQStatus.PENDING_FINAL_APPROVAL: ['company'],                # Award > approval_limit
-        RFQStatus.CANCELLED: ['company', 'chief'],                    # Cancel if no awards yet
+    RFQStatus.OPEN.value: {
+        RFQStatus.CLOSED.value: ['company', 'chief'],                       # Auto-award (≤ limit) or Chief awards
+        RFQStatus.PENDING_FINAL_APPROVAL.value: ['company'],                # Award > approval_limit
+        RFQStatus.CANCELLED.value: ['company', 'chief'],                    # Cancel if no awards yet
     },
-    RFQStatus.PENDING_FINAL_APPROVAL: {
-        RFQStatus.CLOSED: ['chief'],                                  # Chief final approval
-        RFQStatus.OPEN: ['chief'],                                    # Chief rejects award, reopen bidding
+    RFQStatus.PENDING_FINAL_APPROVAL.value: {
+        RFQStatus.CLOSED.value: ['chief'],                                  # Chief final approval
+        RFQStatus.OPEN.value: ['chief'],                                    # Chief rejects award, reopen bidding
     },
-    RFQStatus.DENIED: {
-        RFQStatus.PENDING: ['creator'],                               # Creator re-edits and resubmits
+    RFQStatus.DENIED.value: {
+        RFQStatus.PENDING.value: ['creator'],                               # Creator re-edits and resubmits
     },
-    RFQStatus.CLOSED: {},                                             # Terminal - no exit
-    RFQStatus.CANCELLED: {},                                          # Terminal - no exit
+    RFQStatus.CLOSED.value: {},                                             # Terminal - no exit
+    RFQStatus.CANCELLED.value: {},                                          # Terminal - no exit
 }
 
 # ============= BID STATE MACHINE =============
 
 BID_TRANSITIONS = {
-    BidStatus.DRAFT: {
-        BidStatus.SUBMITTED: ['supplier'],                            # Supplier submits bid
-        BidStatus.WITHDRAWN: ['supplier'],                            # Supplier withdraws (before submit)
+    BidStatus.DRAFT.value: {
+        BidStatus.SUBMITTED.value: ['supplier'],                            # Supplier submits bid
+        BidStatus.WITHDRAWN.value: ['supplier'],                            # Supplier withdraws (before submit)
     },
-    BidStatus.SUBMITTED: {
-        BidStatus.WITHDRAWN: ['supplier'],                            # Supplier withdraws bid
-        BidStatus.ACCEPTED: ['chief'],                                # Chief awards this bid (winning)
-        BidStatus.REJECTED: ['chief'],                                # Chief rejects this bid
+    BidStatus.SUBMITTED.value: {
+        BidStatus.WITHDRAWN.value: ['supplier'],                            # Supplier withdraws bid
+        BidStatus.ACCEPTED.value: ['chief'],                                # Chief awards this bid (winning)
+        BidStatus.REJECTED.value: ['chief'],                                # Chief rejects this bid
     },
-    BidStatus.WITHDRAWN: {},                                          # Terminal - no exit
-    BidStatus.ACCEPTED: {},                                           # Terminal - no exit
-    BidStatus.REJECTED: {},                                           # Terminal - no exit
+    BidStatus.WITHDRAWN.value: {},                                          # Terminal - no exit
+    BidStatus.ACCEPTED.value: {},                                           # Terminal - no exit
+    BidStatus.REJECTED.value: {
+        BidStatus.DRAFT.value: ['supplier'],                                # Legacy path
+        BidStatus.SUBMITTED.value: ['supplier'],                            # Supplier can directly resubmit from reopen snapshot
+    },
+    BidStatus.REOPENED.value: {
+        BidStatus.SUBMITTED.value: ['supplier'],                            # Backward-compatible resubmit path
+        BidStatus.DRAFT.value: ['supplier'],                                # Backward-compatible draft path
+    },
 }
 
 
@@ -78,6 +92,9 @@ class StatusValidator:
             bool: True if transition is valid
         """
         # Check if current status exists in state machine
+        current_status = _status_value(current_status)
+        target_status = _status_value(target_status)
+
         if current_status not in RFQ_TRANSITIONS:
             raise StatusTransitionError(f"Unknown RFQ status: {current_status}")
         
@@ -118,6 +135,9 @@ class StatusValidator:
             bool: True if transition is valid
         """
         # Check if current status exists in state machine
+        current_status = _status_value(current_status)
+        target_status = _status_value(target_status)
+
         if current_status not in BID_TRANSITIONS:
             raise StatusTransitionError(f"Unknown Bid status: {current_status}")
         
@@ -157,7 +177,7 @@ def update_rfq_status(rfq, new_status, user_role, created_by=None):
     """
     try:
         StatusValidator.validate_rfq_transition(rfq.status, new_status, user_role, created_by)
-        rfq.status = new_status
+        rfq.status = _status_value(new_status)
         rfq.status_changed_at = datetime.utcnow()
         return {'success': True, 'message': f'RFQ status updated to {new_status}'}
     except StatusTransitionError as e:
@@ -178,7 +198,7 @@ def update_bid_status(bid, new_status, user_role):
     """
     try:
         StatusValidator.validate_bid_transition(bid.status, new_status, user_role)
-        bid.status = new_status
+        bid.status = _status_value(new_status)
         bid.status_changed_at = datetime.utcnow()
         return {'success': True, 'message': f'Bid status updated to {new_status}'}
     except StatusTransitionError as e:
@@ -233,19 +253,21 @@ def auto_withdraw_bids_on_rfq_status_change(rfq, new_status):
     reason = ""
     
     # Determine which bids to withdraw based on new RFQ status
-    if new_status == RFQStatus.DENIED:
+    new_status = _status_value(new_status)
+
+    if new_status == RFQStatus.DENIED.value:
         # When RFQ is DENIED: withdraw only SUBMITTED bids
         reason = "Το αίτημα απορρίφθηκε από τον υπεύθυνο έγκρισης"
         bids_to_withdraw = Bid.query.filter_by(
             request_id=rfq.id,
-            status=BidStatus.SUBMITTED
+            status=BidStatus.SUBMITTED.value
         ).all()
-    elif new_status == RFQStatus.CANCELLED:
+    elif new_status == RFQStatus.CANCELLED.value:
         # When RFQ is CANCELLED: withdraw all SUBMITTED and DRAFT bids
         reason = "Το αίτημα ακυρώθηκε"
         bids_to_withdraw = Bid.query.filter(
             Bid.request_id == rfq.id,
-            Bid.status.in_([BidStatus.SUBMITTED, BidStatus.DRAFT])
+            Bid.status.in_([BidStatus.SUBMITTED.value, BidStatus.DRAFT.value])
         ).all()
     else:
         # No automatic withdrawal for other status transitions
@@ -254,7 +276,7 @@ def auto_withdraw_bids_on_rfq_status_change(rfq, new_status):
     # Withdraw bids
     for bid in bids_to_withdraw:
         try:
-            bid.status = BidStatus.WITHDRAWN
+            bid.status = BidStatus.WITHDRAWN.value
             bid.status_changed_at = datetime.utcnow()
             bid.rejection_reason = reason
             withdrawn_count += 1

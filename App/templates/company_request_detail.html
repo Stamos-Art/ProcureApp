@@ -37,7 +37,7 @@
                 <div class="col-12 mt-3 pt-3 border-top">
                     <p class="mb-2"><strong>Συνημμένο Αρχείο Προδιαγραφών:</strong></p>
                     {% if rfq.documents %}
-                        <a href="{{ url_for('main.download_file', filename=rfq.documents) }}" target="_blank" class="btn btn-sm btn-outline-primary shadow-sm"><i class="bi bi-file-earmark-arrow-down me-1"></i> Λήψη Αρχείου Εταιρείας</a>
+                        <a href="{{ url_for('main.download_file', filename=rfq.documents) }}" target="_blank" class="btn btn-sm btn-outline-primary shadow-sm"><i class="bi bi-file-earmark-arrow-down me-1"></i> {{ display_attachment_name(rfq.documents) or 'Λήψη Αρχείου Εταιρείας' }}</a>
                     {% else %}
                         <span class="text-muted small"><em>Δεν έχει επισυναφθεί αρχείο.</em></span>
                     {% endif %}
@@ -139,9 +139,9 @@
                         </td>
                         <td>
                             {% if item.id in awards %}
-                                <span class="badge bg-success">Ανατέθηκε σε: {{ awards[item.id].supplier_name }}</span>
+                                <span class="badge bg-success">Assigned to: {{ awards[item.id].supplier_name }}</span>
                             {% else %}
-                                <span class="text-muted small italic">Εκκρεμεί</span>
+                                <span class="text-muted small italic">Pending</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -210,10 +210,10 @@
                         
                         {% if shipping_awarded %}
                             {% for sa in shipping_awards %}
-                                <div class="badge bg-success mb-1">Ανατέθηκε σε: {{ sa.supplier_name }}</div>
+                                <div class="badge bg-success mb-1">Assigned to: {{ sa.supplier_name }}</div>
                             {% endfor %}
                         {% else %}
-                            <span class="text-muted small italic">Εκκρεμεί</span>
+                            <span class="text-muted small italic">Pending</span>
                         {% endif %}
                     </td>
                 </tr>
@@ -386,7 +386,7 @@
 {% endif %}
 
 {% if bids %}
-<h5 class="mt-5 mb-3">Προσφορές Προμηθευτών</h5>
+<h5 class="mt-5 mb-3">Supplier Bids</h5>
 <div class="card shadow-sm border-0">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 text-center">
@@ -404,24 +404,31 @@
                 <tr>
                     <td class="text-start ps-3 fw-bold text-primary">{{ bid.supplier_name }}</td>
                     <td>
-                        <span class="badge text-white" style="background-color: 
-                            {% if bid.status == 'draft' %}#6c757d
-                            {% elif bid.status == 'submitted' %}#0d6efd
-                            {% elif bid.status == 'accepted' %}#198754
-                            {% elif bid.status == 'rejected' %}#dc3545
-                            {% elif bid.status == 'withdrawn' %}#212529
-                            {% else %}#999
-                            {% endif %}">
-                            <i class="bi 
-                                {% if bid.status == 'draft' %}bi-pencil-square
-                                {% elif bid.status == 'submitted' %}bi-check-square
-                                {% elif bid.status == 'accepted' %}bi-check-circle
-                                {% elif bid.status == 'rejected' %}bi-x-circle
-                                {% elif bid.status == 'withdrawn' %}bi-hand-thumbs-down
-                                {% else %}bi-question-circle
-                                {% endif %}
-                            me-1"></i>{{ bid.status.upper() }}
+                        {% set bid_status_key = bid.status|default('')|lower %}
+                        {% set bid_badge_class = 'badge bg-secondary text-white' %}
+                        {% set bid_status_icon = 'bi-question-circle' %}
+                        {% if bid_status_key == 'draft' %}
+                            {% set bid_badge_class = 'badge bg-secondary text-white' %}
+                            {% set bid_status_icon = 'bi-pencil-square' %}
+                        {% elif bid_status_key == 'submitted' %}
+                            {% set bid_badge_class = 'badge bg-primary text-white' %}
+                            {% set bid_status_icon = 'bi-check-square' %}
+                        {% elif bid_status_key == 'accepted' %}
+                            {% set bid_badge_class = 'badge bg-success text-white' %}
+                            {% set bid_status_icon = 'bi-check-circle' %}
+                        {% elif bid_status_key == 'rejected' %}
+                            {% set bid_badge_class = 'badge bg-danger text-white' %}
+                            {% set bid_status_icon = 'bi-x-circle' %}
+                        {% elif bid_status_key == 'withdrawn' %}
+                            {% set bid_badge_class = 'badge bg-dark text-white' %}
+                            {% set bid_status_icon = 'bi-hand-thumbs-down' %}
+                        {% endif %}
+                        <span class="{{ bid_badge_class }}">
+                            <i class="bi {{ bid_status_icon }} me-1"></i>{{ get_status_display_name(bid.status) }}
                         </span>
+                        {% if bid.status == 'rejected' and bid.rejection_reason %}
+                        <div class="small text-danger mt-1 fw-semibold">Reason: {{ bid.rejection_reason }}</div>
+                        {% endif %}
                     </td>
                     <td class="fw-bold">
                         {% set subtotal = bid.subtotal or 0 %}
@@ -444,7 +451,7 @@
                         </button>
                         
                         {% if session.get('role') == 'chief' and rfq.status in ['open', 'pending_final_approval'] %}
-                            {% if bid.status != 'submitted' %}
+                            {% if bid.status == 'accepted' %}
                             <form method="post" action="{{ url_for('company.award_all_from_bid', req_id=rfq.id, bid_id=bid.id) }}" class="d-inline">
                                 <button type="submit" class="btn btn-sm btn-success ms-2" title="Ανάθεση ολόκληρης της προσφοράς">
                                     <i class="bi bi-check2-all"></i> Ανάθεση Προσφοράς
@@ -504,7 +511,7 @@
                                 <div class="text-muted small fw-bold text-uppercase mb-1"><i class="bi bi-paperclip text-info me-1"></i>Τεχνική Προσφορά</div>
                                 <div class="fs-6">
                                     {% if bid.documents %}
-                                        <a href="{{ url_for('main.download_file', filename=bid.documents) }}" target="_blank" class="btn btn-sm btn-outline-info shadow-sm"><i class="bi bi-download me-1"></i> Λήψη Αρχείου</a>
+                                        <a href="{{ url_for('main.download_file', filename=bid.documents) }}" target="_blank" class="btn btn-sm btn-outline-info shadow-sm"><i class="bi bi-download me-1"></i> {{ display_attachment_name(bid.documents) or 'Λήψη Αρχείου' }}</a>
                                     {% else %}
                                         <span class="text-muted small">-</span>
                                     {% endif %}
@@ -573,12 +580,14 @@
                                                 <span class="badge bg-secondary"><i class="bi bi-lock"></i></span>
                                             {% endif %}
                                         {% else %}
-                                            {% if can_modify %}
+                                            {% if can_modify and bid.status != 'rejected' %}
                                             <button class="btn btn-xs btn-success px-3 shadow-sm award-button" 
                                                     data-req-id="{{ rfq.id }}" 
                                                     data-request-item-id="{{ line.request_item_id }}"
                                                     data-bid-line-id="{{ line.id }}"
                                                     data-bid-id="{{ bid.id }}"><i class="bi bi-check-lg"></i> Ανάθεση</button>
+                                            {% elif can_modify and bid.status == 'rejected' %}
+                                                <button disabled class="btn btn-xs btn-outline-danger px-3 shadow-sm" title="The bid was rejected. A new submission is required.">Rejected</button>
                                             {% else %}
                                                 <button disabled class="btn btn-xs btn-outline-secondary px-3 shadow-sm">Ανάθεση</button>
                                             {% endif %}
@@ -624,12 +633,14 @@
                                                 <span class="badge bg-secondary"><i class="bi bi-lock"></i></span>
                                             {% endif %}
                                         {% else %}
-                                            {% if can_modify %}
+                                            {% if can_modify and bid.status != 'rejected' %}
                                             <button class="btn btn-xs btn-success px-3 shadow-sm award-button" 
                                                     data-req-id="{{ rfq.id }}" 
                                                     data-request-item-id="shipping"
                                                     data-bid-line-id="{{ line.id }}"
                                                     data-bid-id="{{ bid.id }}"><i class="bi bi-check-lg"></i> Ανάθεση</button>
+                                            {% elif can_modify and bid.status == 'rejected' %}
+                                                <button disabled class="btn btn-xs btn-outline-danger px-3 shadow-sm" title="The bid was rejected. A new submission is required.">Rejected</button>
                                             {% else %}
                                                 <button disabled class="btn btn-xs btn-outline-secondary px-3 shadow-sm">Ανάθεση</button>
                                             {% endif %}
@@ -684,12 +695,12 @@
                 </form>
                 <form method="post" action="{{ url_for('admin.approve_final', req_id=rfq.id) }}" class="d-inline">
                     <button type="submit" class="btn btn-success px-4 shadow-sm fw-bold">
-                        <i class="bi bi-shield-check me-1"></i> Τελική Έγκριση & Κλείσιμο
+                        <i class="bi bi-shield-check me-1"></i> Budget Approval & Close
                     </button>
                 </form>
             {% else %}
                 <button class="btn btn-secondary px-4 shadow-sm fw-bold" disabled>
-                    <i class="bi bi-hourglass-split me-1"></i> Αναμονή Έγκρισης
+                    <i class="bi bi-hourglass-split me-1"></i> Awaiting budget approval
                 </button>
             {% endif %}
 
@@ -775,7 +786,7 @@
       </div>
       <div class="modal-footer bg-light">
         <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Άκυρο</button>
-        <form method="post" action="{{ url_for('admin.approve_final', req_id=rfq.id) }}">
+        <form method="post" action="{{ url_for('company.finalize_award', req_id=rfq.id) }}">
             <button type="submit" class="btn btn-success px-4 fw-bold"><i class="bi bi-lock-fill me-1"></i>Επιβεβαίωση</button>
         </form>
       </div>
@@ -926,7 +937,7 @@ function attachAwardButtonListener(button) {
             
             const data = await response.json();
             if (data.success) {
-                showAlert('Ανατέθηκε! ✓', 'success');
+                showAlert('Assigned! ✓', 'success');
                 savePageState();
                 setTimeout(() => {
                     window.location.reload();

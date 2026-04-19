@@ -38,6 +38,10 @@
               {% endif %}
             </p>
           </div>
+          <div class="col-12">
+            <p class="text-muted small mb-1">Λεπτομέρειες Ζήτησης</p>
+            <p class="mb-0" style="white-space: pre-wrap; line-height: 1.6;">{{ rfq.description or 'Δεν υπάρχουν πρόσθετες λεπτομέρειες για τη ζήτηση.' }}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -184,8 +188,6 @@ function prepareFormData(event) {
     const row = input.closest('tr');
     const itemId = input.getAttribute('data-item-id');
     const qty = parseFloat(row.getAttribute('data-qty')) || 0;
-    const deliveryDays = row.querySelector('input[name="delivery_days_' + itemId + '"]')?.value || 7;
-    
     const priceInput = document.querySelector(`input.item-price[data-item-id="${itemId}"]`);
     const discountInput = document.querySelector(`input.item-discount[data-item-id="${itemId}"]`);
     const discountTypeSelect = document.querySelector(`select.item-discount-type[data-item-id="${itemId}"]`);
@@ -199,7 +201,6 @@ function prepareFormData(event) {
     container.innerHTML += `<input type="hidden" name="price[]" value="${price}">`;
     container.innerHTML += `<input type="hidden" name="discount[]" value="${discount}">`;
     container.innerHTML += `<input type="hidden" name="discount_type[]" value="${discountType}">`;
-    container.innerHTML += `<input type="hidden" name="delivery_days[]" value="${deliveryDays}">`;
   });
   
   const form = document.getElementById('bid-form');
@@ -491,7 +492,7 @@ document.addEventListener('DOMContentLoaded', updatePricing);
             <div class="col-md-6">
               <div class="p-3 border rounded bg-light">
                 <p class="text-muted small fw-semibold mb-1"><i class="bi bi-calendar-check me-1"></i>Προθεσμία Υποβολής</p>
-                <p class="fw-bold mb-0">{{ rfq.submit_deadline.strftime('%d/%m/%Y %H:%M') if rfq.submit_deadline else '-' }}</p>
+                <p class="fw-bold mb-0">{{ rfq.submit_deadline.strftime('%d/%m/%Y') if rfq.submit_deadline else '-' }}</p>
                 <small class="text-muted">Ημερομηνία λήξης για υποβολή προσφορών</small>
               </div>
             </div>

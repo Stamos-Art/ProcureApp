@@ -15,6 +15,22 @@
     </a>
   </div>
 
+  <form method="get" class="mb-4">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label">Status filter</label>
+        <select name="status" class="form-select" onchange="this.form.submit()">
+          <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+          <option value="submitted" {% if status_filter == 'submitted' %}selected{% endif %}>Submitted</option>
+          <option value="accepted" {% if status_filter == 'accepted' %}selected{% endif %}>Accepted</option>
+          <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+          <option value="reopen" {% if status_filter == 'reopen' %}selected{% endif %}>Reopen</option>
+          <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
+        </select>
+      </div>
+    </div>
+  </form>
+
   <!-- Bids Table -->
   {% if bids %}
   <div class="card border-0 shadow-sm">
@@ -35,12 +51,18 @@
             <td class="ps-4"><strong>#{{ bid.request_id }}</strong></td>
             <td>{{ bid.rfq.title if bid.rfq else 'Διαγραμμένη ζήτηση' }}</td>
             <td>
-              {% if bid.status == 'submitted' %}
-                <span class="badge bg-success">Υποβληθείσα</span>
+              {% if reopen_bid_ids and bid.id in reopen_bid_ids %}
+                <span class="badge bg-info text-dark">Reopen</span>
+              {% elif bid.status == 'submitted' %}
+                <span class="badge bg-success">Submitted</span>
+              {% elif bid.status == 'accepted' %}
+                <span class="badge bg-success">Accepted</span>
               {% elif bid.status == 'draft' %}
-                <span class="badge bg-warning text-dark">Πρόχειρο</span>
+                <span class="badge bg-warning text-dark">Draft</span>
+              {% elif bid.status == 'rejected' %}
+                <span class="badge bg-danger">Rejected</span>
               {% else %}
-                <span class="badge bg-secondary">{{ bid.status }}</span>
+                <span class="badge bg-secondary">{{ get_status_display_name(bid.status) }}</span>
               {% endif %}
             </td>
             <td>

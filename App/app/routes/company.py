@@ -8,9 +8,9 @@ from sqlalchemy.orm import joinedload
 from datetime import datetime, timedelta
 from decimal import Decimal
 import os
-from werkzeug.utils import secure_filename
 
 from app import db
+from app.helpers.utils import build_stored_upload_filename
 from models import (
     RequestRFQ, RequestItem, Bid, BidLine, CostCenter, User, AllowedSupplier,
     ItemAward, ItemReceipt, RFQStatus, BidStatus
@@ -20,6 +20,19 @@ from app.services.status_service import update_bid_status, StatusTransitionError
 
 company_bp = Blueprint('company', __name__, url_prefix='/company')
 
+
+def _parse_multi_values(args, key):
+    """Parse repeated or comma-separated query values into a unique lowercase list."""
+    values = []
+    for raw_value in args.getlist(key):
+        if not raw_value:
+            continue
+        for part in str(raw_value).split(','):
+            cleaned = part.strip().lower()
+            if cleaned and cleaned not in values:
+                values.append(cleaned)
+    return values
+
 @company_bp.route("/")
 @require_roles("company", "chief")
 def dashboard():
@@ -28,8 +41,14 @@ def dashboard():
     
     page = request.args.get('page', 1, type=int)
     per_page = 10
-    phase = (request.args.get("phase") or "all").strip().lower()
     q = (request.args.get("q") or "").strip()
+    phase_filters = [v for v in _parse_multi_values(request.args, 'phase') if v in {'awaiting_approval', 'awaiting_offers', 'offers_received', 'pending_final_approval', 'awarded', 'received', 'denied', 'cancelled'}]
+    cost_center_filters = [v for v in _parse_multi_values(request.args, 'cost_center') if v.isdigit()]
+    period_filters = [v for v in _parse_multi_values(request.args, 'period') if v in {'week', 'month', 'quarter', 'older'}]
+    phase_query = ','.join(phase_filters)
+    period_query = ','.join(period_filters)
+    cost_center_ids = [int(v) for v in cost_center_filters]
+    cost_center_query = ','.join(cost_center_filters)
     
     # Base query
     from app.auth import phase_info
@@ -41,6 +60,9 @@ def dashboard():
             RequestRFQ.title.ilike(like),
             RequestRFQ.description.ilike(like)
         ))
+
+    if cost_center_ids:
+        qry = qry.filter(RequestRFQ.cost_center_id.in_(cost_center_ids))
     
     all_rfqs = qry.order_by(RequestRFQ.id.desc()).all()
     
@@ -50,20 +72,45 @@ def dashboard():
     
     # Filter by phase
     filtered_rfqs = all_rfqs
-    if phase != "all":
-        filtered_rfqs = [r for r in all_rfqs if phase_map[r.id]["key"] == phase]
+    if phase_filters:
+        filtered_rfqs = [r for r in all_rfqs if phase_map[r.id]["key"] in phase_filters]
+
+    if period_filters:
+        now = datetime.utcnow()
+
+        def _period_bucket(rfq):
+            if not rfq.created_at:
+                return 'older'
+            age_days = (now - rfq.created_at).days
+            if age_days <= 7:
+                return 'week'
+            if age_days <= 30:
+                return 'month'
+            if age_days <= 90:
+                return 'quarter'
+            return 'older'
+
+        filtered_rfqs = [r for r in filtered_rfqs if _period_bucket(r) in period_filters]
     
     # Pagination
     total_items = len(filtered_rfqs)
     total_pages = (total_items + per_page - 1) // per_page
     start_idx = (page - 1) * per_page
     paginated_rfqs = filtered_rfqs[start_idx : start_idx + per_page]
+    cost_centers = CostCenter.query.filter_by(is_active=True).order_by(CostCenter.name.asc()).all()
     
     return render_template("company_dash.html",
                          rfqs=paginated_rfqs,
                          editable_ids=editable_ids,
-                         phase=phase,
+                         phase_filters=phase_filters,
+                         phase_query=phase_query,
                          q=q,
+                         cost_centers=cost_centers,
+                         cost_center_filters=cost_center_filters,
+                         cost_center_ids=cost_center_ids,
+                         cost_center_query=cost_center_query,
+                         period_filters=period_filters,
+                         period_query=period_query,
                          phase_map=phase_map,
                          page=page,
                          total_pages=total_pages)
@@ -125,10 +172,11 @@ def new_request():
         # Upload file
         file = request.files.get("document")
         if file and file.filename:
-            filename = secure_filename(file.filename)
-            doc_filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
+            doc_filename = build_stored_upload_filename(file.filename)
             file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], doc_filename))
             rfq.documents = doc_filename
+        elif clone_rfq and clone_rfq.documents:
+            rfq.documents = clone_rfq.documents
         
         db.session.add(rfq)
         db.session.flush()
@@ -177,8 +225,11 @@ def request_detail(req_id):
     # Explicitly load items from database to ensure they display
     items = RequestItem.query.filter_by(request_id=req_id).all()
     
-    # Load bids with their lines eagerly
-    bids = Bid.query.filter_by(request_id=req_id).options(joinedload(Bid.lines)).all()
+    # Company should only see offers that have been submitted (or already processed after submission)
+    bids = Bid.query.filter(
+        Bid.request_id == req_id,
+        Bid.status.in_([BidStatus.SUBMITTED, BidStatus.ACCEPTED, BidStatus.REJECTED])
+    ).options(joinedload(Bid.lines)).all()
     
     awards_list = ItemAward.query.filter_by(request_id=req_id).all()
     awards = {aw.request_item_id: aw for aw in awards_list if aw.request_item_id is not None}
@@ -329,8 +380,7 @@ def edit_request(req_id):
         # File upload
         file = request.files.get("document")
         if file and file.filename:
-            filename = secure_filename(file.filename)
-            doc_filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
+            doc_filename = build_stored_upload_filename(file.filename)
             file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], doc_filename))
             rfq.documents = doc_filename
         
@@ -495,11 +545,11 @@ def award_bids(req_id):
     
     if grand_total_awarded > user_limit and session.get('role') == 'company':
         rfq.status = RFQStatus.PENDING_FINAL_APPROVAL
-        log_action(rfq.id, f"Αναμονή τελικής έγκρισης. Σύνολο: {grand_total_awarded}€, Όριο: {user_limit}€")
-        notify_role('chief', f"Η ζήτηση #{rfq.id} υπερβαίνει το όριο και απαιτεί έγκριση.", 
+        log_action(rfq.id, f"Awaiting budget approval. Total: {grand_total_awarded}€, Limit: {user_limit}€")
+        notify_role('chief', f"RFQ #{rfq.id} requires budget approval (over approval limit).", 
                    url_for('company.request_detail', req_id=rfq.id))
         db.session.commit()
-        flash(f"Το κόστος υπερβαίνει το όριό σας. Εστάλη στον Διευθυντή.", "info")
+        flash("Award total exceeds your approval limit. Sent to Chief for budget approval.", "info")
     else:
         rfq.status = RFQStatus.CLOSED
         rfq.award_date = datetime.utcnow()
@@ -591,11 +641,14 @@ def reject_bid(req_id, bid_id):
     except Exception as e:
         flash(f"Σφάλμα κατα την απόρριψη: {str(e)}", "danger")
         return redirect(url_for('company.request_detail', req_id=req_id))
+
+    bid.rejection_reason = rejection_reason or "Η προσφορά απορρίφθηκε."
     
     log_action(req_id, f"Απόρριψη προσφοράς #{bid_id} από {bid.supplier_name}.")
-    notify_user(bid.supplier.username, 
-               f"Η προσφορά σας για τη ζήτηση #{req_id} απορρίφθηκε.",
-               url_for('supplier.bid', req_id=req_id))
+    rejection_msg = f"Η προσφορά σας για τη ζήτηση #{req_id} απορρίφθηκε."
+    if rejection_reason:
+        rejection_msg += f" Αιτία: {rejection_reason}"
+    notify_user(bid.supplier.username, rejection_msg, url_for('supplier.bid', req_id=req_id))
     
     db.session.commit()
     flash(f"Η προσφορά του {bid.supplier_name} απορρίφθηκε.", "success")
@@ -616,7 +669,10 @@ def award_item(req_id):
         bid_id = request.form.get('bid_id')
         if not bid_id:
             # Find the first bid with shipping cost to award
-            bids = Bid.query.filter_by(request_id=req_id).all()
+            bids = Bid.query.filter(
+                Bid.request_id == req_id,
+                Bid.status.in_([BidStatus.SUBMITTED, BidStatus.ACCEPTED])
+            ).all()
             bid = next((b for b in bids if b.shipping_cost and b.shipping_cost > 0), None)
             if not bid:
                 flash("Δεν υπάρχει προσφορά με μεταφορικά κόστη.", "danger")
@@ -624,8 +680,8 @@ def award_item(req_id):
         else:
             bid = Bid.query.get(bid_id)
         
-        if not bid or bid.request_id != req_id:
-            flash("Άκυρη προσφορά.", "danger")
+        if not bid or bid.request_id != req_id or bid.status not in [BidStatus.SUBMITTED, BidStatus.ACCEPTED]:
+            flash("Δεν μπορείτε να κάνετε ανάθεση σε απορριφθείσα προσφορά. Απαιτείται νέα υποβολή.", "danger")
             return redirect(url_for('company.request_detail', req_id=req_id))
         
         # Delete any existing award for shipping ONLY for this specific bid
@@ -665,8 +721,8 @@ def award_item(req_id):
         return redirect(url_for('company.request_detail', req_id=req_id))
     
     bid = bid_line.bid
-    if bid.request_id != req_id:
-        flash("Άκυρη προσφορά.", "danger")
+    if bid.request_id != req_id or bid.status not in [BidStatus.SUBMITTED, BidStatus.ACCEPTED]:
+        flash("Δεν μπορείτε να κάνετε ανάθεση σε απορριφθείσα προσφορά. Απαιτείται νέα υποβολή.", "danger")
         return redirect(url_for('company.request_detail', req_id=req_id))
     
     # Delete any existing award for this item across ALL bids
@@ -708,15 +764,18 @@ def award_item_ajax(req_id):
     if request_item_id == 'shipping':
         bid_id = request.form.get('bid_id')
         if not bid_id:
-            bids = Bid.query.filter_by(request_id=req_id).all()
+            bids = Bid.query.filter(
+                Bid.request_id == req_id,
+                Bid.status.in_([BidStatus.SUBMITTED, BidStatus.ACCEPTED])
+            ).all()
             bid = next((b for b in bids if b.shipping_cost and b.shipping_cost > 0), None)
             if not bid:
                 return jsonify({"success": False, "message": "Δεν υπάρχει προσφορά με μεταφορικά κόστη."})
         else:
             bid = Bid.query.get(bid_id)
         
-        if not bid or bid.request_id != req_id:
-            return jsonify({"success": False, "message": "Άκυρη προσφορά."})
+        if not bid or bid.request_id != req_id or bid.status not in [BidStatus.SUBMITTED, BidStatus.ACCEPTED]:
+            return jsonify({"success": False, "message": "Δεν μπορείτε να κάνετε ανάθεση σε απορριφθείσα προσφορά. Απαιτείται νέα υποβολή."})
         
         # Prevent duplicates for THIS bid
         ItemAward.query.filter_by(
@@ -751,8 +810,8 @@ def award_item_ajax(req_id):
         return jsonify({"success": False, "message": "Η γραμμή προσφοράς δεν βρέθηκε."})
     
     bid = bid_line.bid
-    if bid.request_id != req_id:
-        return jsonify({"success": False, "message": "Άκυρη προσφορά."})
+    if bid.request_id != req_id or bid.status not in [BidStatus.SUBMITTED, BidStatus.ACCEPTED]:
+        return jsonify({"success": False, "message": "Δεν μπορείτε να κάνετε ανάθεση σε απορριφθείσα προσφορά. Απαιτείται νέα υποβολή."})
     
     # Delete any existing award for this item across ALL bids
     # (regular items can only be awarded to one supplier)
@@ -921,6 +980,10 @@ def award_all_from_bid(req_id, bid_id):
     if not bid or bid.request_id != req_id:
         flash("Η προσφορά δεν βρέθηκε.", "danger")
         return redirect(url_for('company.request_detail', req_id=req_id))
+
+    if bid.status != BidStatus.ACCEPTED:
+        flash("Η ανάθεση προσφοράς επιτρέπεται μόνο μετά από αποδοχή της προσφοράς.", "danger")
+        return redirect(url_for('company.request_detail', req_id=req_id))
     
     # Σπάμε τη διαδικασία σε 2 commit:
     # 1. Καθαρίζουμε ΕΝΤΕΛΩΣ τη βάση από παλιές αναθέσεις (και μεταφορικά) και κάνουμε άμεσα commit.
@@ -951,7 +1014,7 @@ def award_all_from_bid(req_id, bid_id):
     return redirect(url_for('company.request_detail', req_id=req_id))
 
 @company_bp.route("/requests/<int:req_id>/finalize_award", methods=["POST"])
-@require_role("chief")
+@require_roles("company", "chief")
 def finalize_award(req_id):
     """Finalize award and close RFQ"""
     rfq = RequestRFQ.query.get_or_404(req_id)
@@ -965,12 +1028,26 @@ def finalize_award(req_id):
     if not awards:
         flash("Δεν υπάρχουν αναθέσεις για οριστικοποίηση.", "danger")
         return redirect(url_for('company.request_detail', req_id=req_id))
-    
+
+    current_role = session.get('role')
+    current_user = User.query.filter_by(username=session.get('username')).first()
+    user_limit = current_user.approval_limit if current_user and current_user.approval_limit else Decimal('500.00')
+    grand_total_awarded = sum((aw.line_total or Decimal(0)) for aw in awards)
+
+    if current_role == 'company' and grand_total_awarded > user_limit:
+        rfq.status = RFQStatus.PENDING_FINAL_APPROVAL
+        log_action(req_id, f"Awaiting budget approval. Total: {grand_total_awarded}€, Limit: {user_limit}€")
+        notify_role('chief', f"RFQ #{rfq.id} requires budget approval (over approval limit).",
+                    url_for('company.request_detail', req_id=rfq.id))
+        db.session.commit()
+        flash("Award total exceeds your approval limit. Sent to Chief for budget approval.", "info")
+        return redirect(url_for('company.request_detail', req_id=req_id))
+
     # Close the RFQ
     rfq.status = RFQStatus.CLOSED
     rfq.award_date = datetime.utcnow()
     log_action(req_id, "Οριστική κατακύρωση παραγγελίας από το Chief.")
-    
+
     # Notify suppliers
     winners = set(aw.supplier_name for aw in awards)
     for w in winners:
@@ -978,7 +1055,7 @@ def finalize_award(req_id):
         if u:
             notify_user(u.username, f"Συγχαρητήρια! Σας ανατέθηκε η παραγγελία #{req_id}.",
                        url_for('supplier.bid', req_id=req_id))
-    
+
     db.session.commit()
     flash("Η ανάθεση οριστικοποιήθηκε!", "success")
     return redirect(url_for('company.request_detail', req_id=req_id))

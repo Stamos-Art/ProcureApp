@@ -119,6 +119,14 @@
                     <div class="mb-4">
                         <label class="form-label fw-bold text-primary"><i class="bi bi-paperclip me-1"></i>Συνημμένο Αρχείο / Τεχνικές Προδιαγραφές (Προαιρετικό)</label>
                         <input type="file" class="form-control" name="document" accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.png,.jpg,.jpeg">
+                        {% if clone_rfq and clone_rfq.documents %}
+                        <div class="mt-2 small text-muted">
+                            Υπάρχει ήδη συνημμένο από τη ζήτηση προέλευσης:
+                            <a href="{{ url_for('main.download_file', filename=clone_rfq.documents) }}" target="_blank" class="fw-bold text-decoration-none">
+                                <i class="bi bi-download me-1"></i>{{ display_attachment_name(clone_rfq.documents) }}
+                            </a>
+                        </div>
+                        {% endif %}
                         <div class="form-text">Ανεβάστε το επίσημο PDF με τις προδιαγραφές ή τα σχέδια, το οποίο θα βλέπουν οι προμηθευτές.</div>
                     </div>
 
