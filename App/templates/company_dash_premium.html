@@ -1,0 +1,460 @@
+{% extends "base_premium.html" %}
+
+{% block extra_css %}
+<style>
+    /* ═══════════════════════════════════════════════════════════════ */
+    /* COMPANY DASHBOARD - PREMIUM STYLING                             */
+    /* ═══════════════════════════════════════════════════════════════ */
+    
+    /* Dashboard Intro */
+    .dashboard-intro {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: var(--space-8);
+        animation: slideDown var(--duration-300) var(--ease-out));
+        gap: var(--space-4);
+    }
+    
+    .dashboard-intro h1 {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        margin-bottom: var(--space-2);
+        font-size: var(--text-3xl);
+        white-space: nowrap;
+    }
+    
+    .dashboard-intro h1 i {
+        font-size: var(--text-2xl);
+        color: var(--color-primary-blue);
+    }
+    
+    .dashboard-intro p {
+        color: var(--text-secondary);
+        font-size: var(--text-base);
+        margin: 0;
+    }
+    
+    .dashboard-actions {
+        display: flex;
+        gap: var(--space-2);
+        flex-wrap: wrap;
+    }
+    
+    /* Filters Bar */
+    .filters-bar {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: var(--space-4);
+        margin-bottom: var(--space-6);
+        display: flex;
+        gap: var(--space-3);
+        align-items: center;
+        flex-wrap: wrap;
+        animation: slideDown var(--duration-300) 100ms var(--ease-out) backwards;
+    }
+    
+    .filters-bar > div {
+        display: flex;
+        gap: var(--space-2);
+        align-items: center;
+    }
+    
+    .filters-bar .form-control {
+        max-width: 200px;
+        padding: var(--space-2) var(--space-3);
+    }
+    
+    /* KPI Mini Cards */
+    .kpi-mini-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: var(--space-3);
+        margin-bottom: var(--space-6);
+    }
+    
+    .card-mini-kpi {
+        background: linear-gradient(135deg, white 0%, var(--bg-secondary) 100%);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-xl);
+        padding: var(--space-3);
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        transition: all var(--duration-200) var(--ease-in-out));
+    }
+    
+    .card-mini-kpi:hover {
+        border-color: var(--color-primary-blue);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-4px);
+    }
+    
+    .card-mini-kpi-icon {
+        font-size: var(--text-3xl);
+        flex-shrink: 0;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+    }
+    
+    .card-mini-kpi-content h4 {
+        margin: 0 0 var(--space-1) 0;
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        font-weight: var(--font-semibold);
+        letter-spacing: 0.5px;
+    }
+    
+    .card-mini-kpi-value {
+        font-size: var(--text-2xl);
+        font-weight: var(--font-extrabold);
+        color: var(--color-primary-navy);
+        line-height: 1;
+    }
+    
+    /* Requests Table */
+    .table-wrapper {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-xl);
+        overflow: hidden;
+        box-shadow: var(--shadow-xs);
+        animation: slideUp var(--duration-300) 200ms var(--ease-out) backwards;
+    }
+    
+    .table-wrapper:hover {
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary-blue);
+        transition: all var(--duration-300) var(--ease-in-out));
+    }
+    
+    .table-wrapper .card-title {
+        padding: var(--space-6) var(--space-6) var(--space-4) var(--space-6);
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+    }
+    
+    .table-wrapper .table {
+        margin: 0;
+    }
+    
+    .table-wrapper .table th {
+        background: var(--bg-tertiary);
+        border-bottom: 2px solid var(--border-color);
+        font-size: var(--text-xs);
+    }
+    
+    .table-wrapper .table tbody tr {
+        border-bottom: 1px solid var(--border-color);
+        transition: background-color var(--duration-150) var(--ease-in-out));
+    }
+    
+    .table-wrapper .table tbody tr:hover {
+        background-color: var(--bg-secondary);
+    }
+    
+    /* Status Badge Column */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        padding: var(--space-1-5) var(--space-3);
+        border-radius: var(--radius-lg);
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+    }
+    
+    /* Pagination */
+    .pagination {
+        padding: var(--space-4) var(--space-6);
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        justify-content: center;
+        gap: var(--space-2);
+    }
+    
+    .pagination a,
+    .pagination span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-color);
+        color: var(--color-primary-blue);
+        text-decoration: none;
+        transition: all var(--duration-200) var(--ease-in-out));
+        font-weight: var(--font-medium);
+    }
+    
+    .pagination a:hover {
+        background: var(--color-primary-light);
+        border-color: var(--color-primary-blue);
+    }
+    
+    .pagination .active {
+        background: var(--color-primary-blue);
+        color: white;
+        border-color: var(--color-primary-blue);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: var(--space-12) var(--space-6);
+        color: var(--text-secondary);
+    }
+    
+    .empty-state-icon {
+        font-size: var(--text-5xl);
+        margin-bottom: var(--space-4);
+        opacity: 0.5;
+    }
+    
+    .empty-state h3 {
+        color: var(--text-primary);
+        margin-bottom: var(--space-2);
+    }
+    
+    /* Row hover effect */
+    .table tbody tr {
+        position: relative;
+    }
+    
+    .table tbody tr::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 3px;
+        background: var(--color-primary-blue);
+        transform: scaleY(0);
+        transform-origin: center;
+        transition: transform var(--duration-200) var(--ease-in-out));
+    }
+    
+    .table tbody tr:hover::before {
+        transform: scaleY(1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ═════════════════════════════════════════════════════════════════ -->
+<!-- DASHBOARD HEADER                                                  -->
+<!-- ═════════════════════════════════════════════════════════════════ -->
+
+<div class="dashboard-intro">
+    <div>
+        <h1>
+            <i class="bi bi-list-task"></i>
+            Πίνακας Ελέγχου
+        </h1>
+        <p>Διαχείριση και παρακολούθηση των ζητήσεων της εταιρείας</p>
+    </div>
+    <div class="dashboard-actions">
+        <a href="{{ url_for('company.new_request') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Νέα Ζήτηση
+        </a>
+    </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════ -->
+<!-- MINI KPI CARDS                                                    -->
+<!-- ═════════════════════════════════════════════════════════════════ -->
+
+<div class="kpi-mini-grid">
+    <!-- Active Requests -->
+    <div class="card-mini-kpi">
+        <div class="card-mini-kpi-icon">📋</div>
+        <div class="card-mini-kpi-content">
+            <h4>Ενεργές</h4>
+            <div class="card-mini-kpi-value">{{ rfqs|selectattr('status', 'in', ['open', 'pending'])|list|length }}</div>
+        </div>
+    </div>
+    
+    <!-- Pending Approvals -->
+    <div class="card-mini-kpi">
+        <div class="card-mini-kpi-icon">⏳</div>
+        <div class="card-mini-kpi-content">
+            <h4>Σε Αναμονή</h4>
+            <div class="card-mini-kpi-value">{{ rfqs|selectattr('status', '==', 'pending')|list|length }}</div>
+        </div>
+    </div>
+    
+    <!-- Completed -->
+    <div class="card-mini-kpi">
+        <div class="card-mini-kpi-icon">✅</div>
+        <div class="card-mini-kpi-content">
+            <h4>Ολοκληρωμένες</h4>
+            <div class="card-mini-kpi-value">{{ rfqs|selectattr('status', '==', 'closed')|list|length }}</div>
+        </div>
+    </div>
+    
+    <!-- Cancelled -->
+    <div class="card-mini-kpi">
+        <div class="card-mini-kpi-icon">❌</div>
+        <div class="card-mini-kpi-content">
+            <h4>Ακυρωμένες</h4>
+            <div class="card-mini-kpi-value">{{ rfqs|selectattr('status', '==', 'cancelled')|list|length }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════ -->
+<!-- FILTERS BAR                                                       -->
+<!-- ═════════════════════════════════════════════════════════════════ -->
+
+<div class="filters-bar">
+    <div>
+        <form method="GET" class="d-flex gap-3" id="filterForm">
+            <div>
+                <input type="text" name="q" class="form-control" placeholder="Αναζήτηση..." 
+                       value="{{ q or '' }}" style="max-width: 250px;">
+            </div>
+            <div>
+                <select name="phase" class="form-control" onchange="document.getElementById('filterForm').submit()">
+                    <option value="all" {% if phase == 'all' %}selected{% endif %}>Όλες οι Καταστάσεις</option>
+                    <option value="awaiting_approval" {% if phase == 'awaiting_approval' %}selected{% endif %}>Προς Έγκριση</option>
+                    <option value="awaiting_offers" {% if phase == 'awaiting_offers' %}selected{% endif %}>Αναμονή Προσφορών</option>
+                    <option value="offers_received" {% if phase == 'offers_received' %}selected{% endif %}>Προσφορές Λήφθησαν</option>
+                    <option value="awarded" {% if phase == 'awarded' %}selected{% endif %}>Ανατεθειμένες</option>
+                    <option value="cancelled" {% if phase == 'cancelled' %}selected{% endif %}>Ακυρωμένες</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-secondary">
+                <i class="bi bi-funnel"></i> Εφαρμογή
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════ -->
+<!-- REQUESTS TABLE                                                    -->
+<!-- ═════════════════════════════════════════════════════════════════ -->
+
+<div class="table-wrapper">
+    <h2 class="card-title">
+        <i class="bi bi-grid-3x3-gap"></i>
+        Ζητήσεις Προμηθειών
+    </h2>
+    
+    {% if rfqs %}
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">ID</th>
+                    <th>Τίτλος</th>
+                    <th>Έργο</th>
+                    <th>Δημιουργός</th>
+                    <th>Προθεσμίες</th>
+                    <th>Κατάσταση</th>
+                    <th style="width: 120px; text-align: right;">Ενέργεια</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rfqs %}
+                    {% set info = phase_map[r.id] %}
+                    <tr class="{% if r.status == 'cancelled' %}opacity-50{% endif %}">
+                        <td class="fw-bold text-primary">#{{ r.id }}</td>
+                        <td>
+                            <div style="font-weight: 600; color: var(--text-primary);">{{ r.title }}</div>
+                            {% if r.cost_center %}
+                                <small style="color: var(--text-secondary);">
+                                    <i class="bi bi-buildings" style="margin-right: 4px;"></i>
+                                    {{ r.cost_center.name }}
+                                </small>
+                            {% endif %}
+                        </td>
+                        <td>{{ r.cost_center.name if r.cost_center else '-' }}</td>
+                        <td>{{ r.created_by }}</td>
+                        <td>
+                            <small style="display: block; margin-bottom: 4px;">
+                                <strong>Υπ:</strong> {{ r.submit_deadline.strftime('%d/%m/%y') if r.submit_deadline else '-' }}
+                            </small>
+                            <small>
+                                <strong>Παρ:</strong> {{ r.delivery_deadline.strftime('%d/%m/%y') if r.delivery_deadline else '-' }}
+                            </small>
+                        </td>
+                        <td>
+                            <span class="{{ info.badge }}" style="display: inline-flex; align-items: center; gap: 6px;">
+                                <i class="bi {{ info.icon }}"></i>
+                                <span style="font-size: 12px;">{{ info.label }}</span>
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <a href="{{ url_for('company.request_detail', req_id=r.id) }}" 
+                               class="btn btn-sm btn-outline" style="white-space: nowrap;">
+                                <i class="bi bi-arrow-right"></i> Προβολή
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+            <div class="pagination">
+                {% if page > 1 %}
+                    <a href="{{ url_for('company.dashboard', page=page-1, phase=phase, q=q) }}">← Προηγ.</a>
+                {% endif %}
+                
+                {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
+                    {% if p == page %}
+                        <span class="active">{{ p }}</span>
+                    {% else %}
+                        <a href="{{ url_for('company.dashboard', page=p, phase=phase, q=q) }}">{{ p }}</a>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page < total_pages %}
+                    <a href="{{ url_for('company.dashboard', page=page+1, phase=phase, q=q) }}">Επόμ. →</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <h3>Δεν βρέθηκαν ζητήσεις</h3>
+            <p>Δεν υπάρχουν ζητήσεις που να ταιριάζουν με τα κριτήρια αναζήτησης</p>
+            <a href="{{ url_for('company.new_request') }}" class="btn btn-primary" style="margin-top: var(--space-4);">
+                <i class="bi bi-plus-circle"></i> Δημιουργία Νέας Ζήτησης
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Highlight pending items
+        const rows = document.querySelectorAll('.table tbody tr');
+        rows.forEach(row => {
+            if (row.textContent.includes('Αναμονή')) {
+                row.style.borderLeft = '4px solid var(--color-warning)';
+            }
+        });
+        
+        // Update mini KPI colors
+        const miniCards = document.querySelectorAll('.card-mini-kpi');
+        miniCards.forEach((card, index) => {
+            const colors = [
+                'linear-gradient(135deg, rgba(29, 95, 174, 0.05), rgba(0, 168, 232, 0.05))',
+                'linear-gradient(135deg, rgba(245, 158, 11, 0.05), rgba(245, 158, 11, 0.05))',
+                'linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(16, 185, 129, 0.05))',
+                'linear-gradient(135deg, rgba(239, 68, 68, 0.05), rgba(239, 68, 68, 0.05))'
+            ];
+            card.style.background = colors[index] || colors[0];
+        });
+    });
+</script>
+{% endblock %}

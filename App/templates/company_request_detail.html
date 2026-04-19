@@ -1,0 +1,1123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>Ζήτηση #{{ rfq.id }} - {{ rfq.title }}</h3>
+    <div>
+        <span class="{{ phase_info(rfq).badge }} fs-6">
+            <i class="bi {{ phase_info(rfq).icon }} me-1"></i> {{ phase_info(rfq).label }}
+        </span>
+    </div>
+</div>
+
+<p class="text-muted mb-4 small">
+    Δημιουργός: {{ rfq.created_by }} | {{ rfq.created_at.strftime('%d/%m/%Y %H:%M') if rfq.created_at else '' }}
+</p>
+
+{% set can_modify = rfq.status not in ['closed', 'received', 'cancelled'] and (rfq.status != 'pending_final_approval' or session.get('role') == 'chief') %}
+
+<div class="row mb-4 g-3">
+    <div class="col-md-12">
+        <div class="p-3 border rounded bg-white shadow-sm small">
+            <h6 class="fw-bold mb-3 border-bottom pb-2 text-uppercase">Γενικές λεπτομέρειες</h6>
+            <div class="row">
+                <div class="col-md-4">
+                    <p class="mb-2"><strong>Τόπος παράδοσης:</strong> {{ rfq.delivery_location or '-' }}</p>
+                    <p class="mb-2"><strong>Υπεύθυνος Παραλαβής:</strong> {{ rfq.receiving_manager or '-' }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p class="mb-2"><strong>Τηλέφωνο:</strong> {{ rfq.phone or '-' }}</p>
+                    <p class="mb-2"><strong>Έργο/Κέντρο Κόστους:</strong> {{ rfq.cost_center.name if rfq.cost_center else '-' }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p class="mb-2"><strong>Προθεσμία υποβολής:</strong> {{ rfq.submit_deadline.strftime('%d/%m/%Y') if rfq.submit_deadline else '-' }}</p>
+                    <p class="mb-0"><strong>Προθεσμία παράδοσης:</strong> {{ rfq.delivery_deadline.strftime('%d/%m/%Y') if rfq.delivery_deadline else '-' }}</p>
+                </div>
+                
+                <div class="col-12 mt-3 pt-3 border-top">
+                    <p class="mb-2"><strong>Συνημμένο Αρχείο Προδιαγραφών:</strong></p>
+                    {% if rfq.documents %}
+                        <a href="{{ url_for('main.download_file', filename=rfq.documents) }}" target="_blank" class="btn btn-sm btn-outline-primary shadow-sm"><i class="bi bi-file-earmark-arrow-down me-1"></i> Λήψη Αρχείου Εταιρείας</a>
+                    {% else %}
+                        <span class="text-muted small"><em>Δεν έχει επισυναφθεί αρχείο.</em></span>
+                    {% endif %}
+                </div>
+
+                <div class="col-12 mt-3 pt-3 border-top">
+                    <p class="mb-2"><strong>Λεπτομέρειες / Σχόλια:</strong></p>
+                    {% if rfq.description %}
+                        <p class="text-muted small mb-0" style="white-space: pre-wrap; line-height: 1.6;">{{ rfq.description }}</p>
+                    {% else %}
+                        <span class="text-muted small"><em>Δεν υπάρχουν λεπτομέρειες.</em></span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="mt-3 pt-3 border-top">
+                <p class="mb-2"><strong>Επιλεγμένοι Προμηθευτές:</strong></p>
+                <div>
+                    {% if rfq.allowed_suppliers %}
+                        {% for allowed in rfq.allowed_suppliers %}
+                            <span class="badge bg-light text-dark border me-1 mb-1">
+                                <i class="bi bi-buildings text-primary me-1"></i>{{ allowed.supplier_username }}
+                            </span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted small"><em>Δεν έχουν επιλεγεί προμηθευτές.</em></span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h5 class="mb-3 mt-4">Λίστα Ειδών για Προμήθεια</h5>
+<div class="card shadow-sm border-0 mb-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 text-center">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 50px;">#</th>
+                    <th class="text-start">Περιγραφή Είδους</th>
+                    <th>Μονάδα Μέτρησης</th>
+                    <th>Ποσότητα</th>
+                    <th>Τιμή Μον.</th>
+                    <th>Έκπτωση</th>
+                    <th>Τελική Τιμή</th>
+                    <th>Κατάσταση Ανάθεσης</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if items %}
+                    {% for item in items %}
+                    <tr>
+                        <td class="text-muted">{{ loop.index }}</td>
+                        <td class="text-start fw-bold">{{ item.description }}</td>
+                        <td>{{ item.unit or 'τμχ' }}</td>
+                        <td>{{ "%.2f"|format(item.quantity) }}</td>
+                        <td>
+                            {% if item.id in awards %}
+                                {% set aw_bid_line = awards[item.id].bid_line if awards[item.id].bid_line else None %}
+                                {% if aw_bid_line %}
+                                    <strong>{{ "%.2f"|format(aw_bid_line.unit_price) }} €</strong>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.id in awards %}
+                                {% set aw_bid_line = awards[item.id].bid_line if awards[item.id].bid_line else None %}
+                                {% if aw_bid_line %}
+                                    {% if aw_bid_line.discount_type == 'pct' and aw_bid_line.discount_pct and aw_bid_line.discount_pct > 0 %}
+                                        <span class="text-danger">-{{ "%.2f"|format(aw_bid_line.discount_pct) }}%</span>
+                                    {% elif aw_bid_line.discount_type == 'amt' and aw_bid_line.discount_amount and aw_bid_line.discount_amount > 0 %}
+                                        <span class="text-danger">-{{ "%.2f"|format(aw_bid_line.discount_amount) }} €</span>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.id in awards %}
+                                {% set aw_bid_line = awards[item.id].bid_line if awards[item.id].bid_line else None %}
+                                {% if aw_bid_line %}
+                                    <strong class="text-success">{{ "%.2f"|format(aw_bid_line.line_total) }} €</strong>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.id in awards %}
+                                <span class="badge bg-success">Ανατέθηκε σε: {{ awards[item.id].supplier_name }}</span>
+                            {% else %}
+                                <span class="text-muted small italic">Εκκρεμεί</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="9" class="py-4 text-danger italic">Δεν βρέθηκαν είδη σε αυτή τη ζήτηση.</td>
+                    </tr>
+                {% endif %}
+                
+                <tr class="table-info">
+                    <td>-</td>
+                    <td class="text-start fw-bold"><i class="bi bi-truck me-2"></i>Μεταφορικά / Έξοδα Αποστολής</td>
+                    <td>υπηρεσία</td>
+                    <td>1.00</td>
+                    <td>
+                        {% if shipping_awards %}
+                            {% set sa = shipping_awards[0] %}
+                            {% set aw_bid_line = sa.bid_line if sa.bid_line else None %}
+                            {% if aw_bid_line %}
+                                <strong>{{ "%.2f"|format(aw_bid_line.unit_price) }} €</strong>
+                            {% else %}
+                                -
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if shipping_awards %}
+                            {% set sa = shipping_awards[0] %}
+                            {% set aw_bid_line = sa.bid_line if sa.bid_line else None %}
+                            {% if aw_bid_line %}
+                                {% if aw_bid_line.discount_type == 'pct' and aw_bid_line.discount_pct and aw_bid_line.discount_pct > 0 %}
+                                    <span class="text-danger">-{{ "%.2f"|format(aw_bid_line.discount_pct) }}%</span>
+                                {% elif aw_bid_line.discount_type == 'amt' and aw_bid_line.discount_amount and aw_bid_line.discount_amount > 0 %}
+                                    <span class="text-danger">-{{ "%.2f"|format(aw_bid_line.discount_amount) }} €</span>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if shipping_awards %}
+                            {% set sa = shipping_awards[0] %}
+                            {% set aw_bid_line = sa.bid_line if sa.bid_line else None %}
+                            {% if aw_bid_line %}
+                                <strong class="text-success">{{ "%.2f"|format(aw_bid_line.line_total) }} €</strong>
+                            {% else %}
+                                -
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set shipping_awarded = false %}
+                        {% if shipping_awards %}
+                            {% set shipping_awarded = true %}
+                        {% endif %}
+                        
+                        {% if shipping_awarded %}
+                            {% for sa in shipping_awards %}
+                                <div class="badge bg-success mb-1">Ανατέθηκε σε: {{ sa.supplier_name }}</div>
+                            {% endfor %}
+                        {% else %}
+                            <span class="text-muted small italic">Εκκρεμεί</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if rfq.status in ['closed', 'received'] %}
+<h5 class="mt-5 mb-3"><i class="bi bi-box-seam me-2"></i>Παραλαβή Υλικών</h5>
+<div class="card shadow-sm border-0 mb-5">
+    <div class="card-body p-0">
+        <form id="receiptForm" method="post" action="{{ url_for('company.save_receipt', req_id=rfq.id) }}">
+            <input type="hidden" id="finalizeReceiptInput" name="finalize_receipt" value="0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 text-center">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-start ps-4">Περιγραφή Είδους</th>
+                            <th>Ποσότητα Παραγγελίας</th>
+                            <th style="width: 180px;">Ποσότητα Παραλαβής</th>
+                            <th class="text-end pe-4">Κατάσταση</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                            {% if item.id in awards %}
+                            {% set aw = awards[item.id] %}
+                            {% set rec = receipts[item.id] if receipts and item.id in receipts else None %}
+                            {% set r_qty = rec.received_qty if rec and rec.received_qty else 0 %}
+                            {% set diff = aw.qty - r_qty %}
+                            <tr>
+                                <td class="text-start ps-4 fw-bold">{{ item.description }}</td>
+                                <td>{{ "%.2f"|format(aw.qty) }} {{ item.unit }}</td>
+                                <td>
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" step="0.01" min="0" max="{{ aw.qty }}" class="form-control text-end" name="recv_qty_{{ item.id }}" value="{{ "%.2f"|format(r_qty) if r_qty > 0 else '' }}" placeholder="0.00" {{ 'disabled' if rfq.status == 'received' }}>
+                                        <span class="input-group-text bg-light text-muted">{{ item.unit }}</span>
+                                    </div>
+                                </td>
+                                <td class="text-end pe-4">
+                                    {% if diff <= 0 %}
+                                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Πλήρης</span>
+                                    {% elif r_qty > 0 %}
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-clock-history me-1"></i>Μερική ({{ "%.2f"|format(diff) }} υπόλοιπο)</span>
+                                    {% else %}
+                                        <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Εκκρεμεί</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if rfq.status == 'closed' %}
+            <div class="p-3 bg-light border-top d-flex justify-content-between align-items-center">
+                <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Αποθηκεύστε τις ποσότητες σταδιακά ή οριστικοποιήστε την παραλαβή.</small>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-outline-primary px-4 shadow-sm"><i class="bi bi-save me-1"></i>Αποθήκευση Ποσοτήτων</button>
+                    <button type="button" class="btn btn-success px-4 shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#receiptModal">
+                        <i class="bi bi-box-seam me-1"></i> Ολοκλήρωση Παραλαβής
+                    </button>
+                </div>
+            </div>
+            {% else %}
+            <div class="p-3 bg-success-subtle border-top text-success fw-bold text-center">
+                <i class="bi bi-check-all me-2"></i> Η παραλαβή έχει ολοκληρωθεί οριστικά!
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if awarded_summary %}
+<div class="card border-0 shadow mb-5 rounded-3 bg-white" id="awardSummaryBox">
+    <div class="card-header bg-success bg-gradient text-white py-3">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-calculator-fill me-2"></i>Σύνοψη Κόστους Αναθέσεων</h5>
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-4 align-items-center">
+            <!-- Αρχικό Υποσύνολο -->
+            <div class="col-md-4 text-center border-end">
+                <div class="text-muted fw-semibold text-uppercase mb-2"><i class="bi bi-cart me-1"></i>Αρχικό Υποσύνολο</div>
+                <div class="fs-2 text-primary fw-bold" id="summaryInitialSubtotal">
+                    {{ "%.2f"|format(initial_subtotal) }} €
+                </div>
+            </div>
+            
+            <!-- Λεπτομέρειες Υπολογισμού -->
+            <div class="col-md-4">
+                <div class="text-muted fw-semibold text-uppercase mb-3"><i class="bi bi-list-check me-1"></i>Ανάλυση ανά Προμηθευτή</div>
+                <div class="summary-details-list">
+                    {% for sup, data in awarded_summary.items() %}
+                    <div class="mb-3 pb-2 border-bottom border-light summary-supplier-item">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <strong class="text-dark"><i class="bi bi-shop me-1"></i>{{ sup }}</strong>
+                            <span class="badge bg-light text-dark border">{{ "%.2f"|format(data.final_total) }} €</span>
+                        </div>
+                        <div class="ms-3 small text-muted">
+                            <div class="d-flex justify-content-between">
+                                <span>Αξία Ειδών:</span>
+                                <span>{{ "%.2f"|format(data.items_subtotal_before_discount) }} €</span>
+                            </div>
+                            {% if data.items_total_discount > 0 %}
+                            <div class="d-flex justify-content-between text-danger">
+                                <span>Εκπτώσεις Ειδών:</span>
+                                <span>-{{ "%.2f"|format(data.items_total_discount) }} €</span>
+                            </div>
+                            {% endif %}
+                            {% if data.overall_discount > 0 %}
+                            <div class="d-flex justify-content-between text-danger">
+                                <span>Συνολική Έκπτωση:</span>
+                                <span>-{{ "%.2f"|format(data.overall_discount) }} €</span>
+                            </div>
+                            {% endif %}
+                            {% if data.combo_total > 0 %}
+                            <div class="d-flex justify-content-between text-info">
+                                <span>Μεταφορικά:</span>
+                                <span>+{{ "%.2f"|format(data.combo_total) }} €</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Τελικό Σύνολο -->
+            <div class="col-md-4 text-center border-start">
+                <div class="text-muted fw-semibold text-uppercase mb-2"><i class="bi bi-cash-coin me-1"></i>Τελικό Κόστος</div>
+                <div class="display-5 text-success fw-bold" id="summaryGrandTotal">
+                    {{ "%.2f"|format(grand_total_awarded) }} €
+                </div>
+                <span class="badge bg-light text-muted border mt-2 fw-normal"><i class="bi bi-info-circle me-1"></i>Δεν περιλαμβάνεται ΦΠΑ</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+{% if session.get('role') == 'chief' and rfq.status == 'pending' %}
+<div class="card border-warning shadow-sm my-5">
+    <div class="card-body d-flex align-items-center justify-content-between p-4">
+        <div>
+            <h5 class="fw-bold">Έγκριση Ζήτησης</h5>
+            <p class="text-muted small mb-0">Ελέγξτε τα είδη και τα στοιχεία πριν την δημοσίευση στους προμηθευτές.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <form method="post" action="{{ url_for('admin.approve', req_id=rfq.id) }}">
+                <button type="submit" class="btn btn-success px-4 shadow-sm fw-bold"><i class="bi bi-check-lg me-1"></i>Έγκριση</button>
+            </form>
+            <button class="btn btn-danger px-4 shadow-sm fw-bold" data-bs-toggle="collapse" data-bs-target="#denySection">
+                <i class="bi bi-x-lg me-1"></i> Απόρριψη
+            </button>
+        </div>
+    </div>
+    <div class="collapse p-4 border-top bg-light" id="denySection">
+        <form method="post" action="{{ url_for('admin.deny', req_id=rfq.id) }}">
+            <div class="input-group">
+                <input type="text" name="reason" class="form-control" placeholder="Λόγος απόρριψης..." required>
+                <button type="submit" class="btn btn-danger text-white px-4">Επιβεβαίωση</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if bids %}
+<h5 class="mt-5 mb-3">Προσφορές Προμηθευτών</h5>
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 text-center">
+            <thead class="table-light">
+                <tr>
+                    <th class="text-start ps-3">Προμηθευτής</th>
+                    <th>Κατάσταση Προσφοράς</th>
+                    <th>Τελική Τιμή</th>
+                    <th>Ημερ. Υποβολής</th>
+                    <th class="text-end pe-3">Ενέργεια</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bid in bids %}
+                <tr>
+                    <td class="text-start ps-3 fw-bold text-primary">{{ bid.supplier_name }}</td>
+                    <td>
+                        <span class="badge text-white" style="background-color: 
+                            {% if bid.status == 'draft' %}#6c757d
+                            {% elif bid.status == 'submitted' %}#0d6efd
+                            {% elif bid.status == 'accepted' %}#198754
+                            {% elif bid.status == 'rejected' %}#dc3545
+                            {% elif bid.status == 'withdrawn' %}#212529
+                            {% else %}#999
+                            {% endif %}">
+                            <i class="bi 
+                                {% if bid.status == 'draft' %}bi-pencil-square
+                                {% elif bid.status == 'submitted' %}bi-check-square
+                                {% elif bid.status == 'accepted' %}bi-check-circle
+                                {% elif bid.status == 'rejected' %}bi-x-circle
+                                {% elif bid.status == 'withdrawn' %}bi-hand-thumbs-down
+                                {% else %}bi-question-circle
+                                {% endif %}
+                            me-1"></i>{{ bid.status.upper() }}
+                        </span>
+                    </td>
+                    <td class="fw-bold">
+                        {% set subtotal = bid.subtotal or 0 %}
+                        {% set line_discounts = bid.discount_total or 0 %}
+                        {% set overall_discount_val = bid.overall_discount_pct or 0 %}
+                        {% set overall_discount_type = bid.overall_discount_type or 'pct' %}
+                        {% set combo_total = bid_combo_totals[bid.id] if bid.id in bid_combo_totals else 0 %}
+                        {% if overall_discount_type == 'pct' %}
+                            {% set overall_discount_amount = ((subtotal - line_discounts) * overall_discount_val / 100) if (subtotal - line_discounts) > 0 else 0 %}
+                        {% else %}
+                            {% set overall_discount_amount = overall_discount_val %}
+                        {% endif %}
+                        {% set final_price = subtotal - line_discounts - overall_discount_amount + combo_total %}
+                        {{ "%.2f"|format(final_price) }} €
+                    </td>
+                    <td class="small text-muted">{{ bid.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td class="text-end pe-3">
+                        <button class="btn btn-sm btn-outline-primary px-3" data-bs-toggle="collapse" data-bs-target="#bidDetails{{ bid.id }}">
+                            Λεπτομέρειες
+                        </button>
+                        
+                        {% if session.get('role') == 'chief' and rfq.status in ['open', 'pending_final_approval'] %}
+                            {% if bid.status != 'submitted' %}
+                            <form method="post" action="{{ url_for('company.award_all_from_bid', req_id=rfq.id, bid_id=bid.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-success ms-2" title="Ανάθεση ολόκληρης της προσφοράς">
+                                    <i class="bi bi-check2-all"></i> Ανάθεση Προσφοράς
+                                </button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
+                        
+                        {% if session.get('role') == 'chief' and rfq.status in ['open', 'pending_final_approval'] and bid.status == 'submitted' %}
+                        <div class="btn-group btn-group-sm ms-2" role="group">
+                            <form method="post" action="{{ url_for('company.accept_bid', req_id=rfq.id, bid_id=bid.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-success" title="Αποδοχή ως Νικητήρια Προσφορά">
+                                    <i class="bi bi-check-lg"></i> Αποδοχή</button>
+                            </form>
+                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#rejectBidModal{{ bid.id }}" title="Απόρριψη Προσφοράς">
+                                <i class="bi bi-x-lg"></i> Απόρριψη
+                            </button>
+                        </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                
+                <tr class="collapse {% if request.args.get('open_bid')|string == bid.id|string %}show{% endif %}" id="bidDetails{{ bid.id }}">
+                    <td colspan="5" class="bg-light p-4 shadow-inner">
+                        
+                        <div class="d-flex flex-wrap gap-4 mb-3 p-3 bg-white border rounded shadow-sm text-start">
+                            <div>
+                                <div class="text-muted small fw-bold text-uppercase mb-1"><i class="bi bi-calendar-check text-primary me-1"></i>Προτεινόμενη Παράδοση</div>
+                                <div class="fs-6 fw-bold">
+                                    {% if bid.proposed_delivery_date %}
+                                        {{ bid.proposed_delivery_date.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="border-start ps-4">
+                                <div class="text-muted small fw-bold text-uppercase mb-1"><i class="bi bi-tags text-danger me-1"></i>Συνολική Έκπτωση</div>
+                                <div class="fs-6 fw-bold text-danger">
+                                    {% set total_discount = bid.discount_total or 0 %}
+                                    {% if bid.overall_discount_pct and bid.overall_discount_pct > 0 %}
+                                        {% if bid.overall_discount_type == 'pct' %}
+                                            -{{ "%.2f"|format(bid.overall_discount_pct) }}%
+                                        {% else %}
+                                            -{{ "%.2f"|format(bid.overall_discount_pct) }} €
+                                        {% endif %}
+                                    {% elif total_discount > 0 %}
+                                        -{{ "%.2f"|format(total_discount) }} €
+                                    {% else %}
+                                        <span class="text-dark">-</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="border-start ps-4">
+                                <div class="text-muted small fw-bold text-uppercase mb-1"><i class="bi bi-paperclip text-info me-1"></i>Τεχνική Προσφορά</div>
+                                <div class="fs-6">
+                                    {% if bid.documents %}
+                                        <a href="{{ url_for('main.download_file', filename=bid.documents) }}" target="_blank" class="btn btn-sm btn-outline-info shadow-sm"><i class="bi bi-download me-1"></i> Λήψη Αρχείου</a>
+                                    {% else %}
+                                        <span class="text-muted small">-</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="flex-grow-1 border-start ps-4">
+                                <div class="text-muted small fw-bold text-uppercase mb-1"><i class="bi bi-chat-text text-primary me-1"></i>Σχόλια / Παρατηρήσεις</div>
+                                <div class="fs-6">
+                                    {% if bid.notes %}
+                                        {{ bid.notes }}
+                                    {% else %}
+                                        <em class="text-muted small">Κανένα σχόλιο</em>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <table class="table table-sm table-bordered bg-white shadow-sm">
+                            <thead class="table-secondary text-center small fw-bold">
+                                <tr>
+                                    <th class="py-2 text-start ps-2">ΕΙΔΟΣ</th>
+                                    <th>ΠΟΣΟΤΗΤΑ</th>
+                                    <th>ΤΙΜΗ ΜΟΝ.</th>
+                                    <th>ΕΚΠΤΩΣΗ</th>
+                                    <th class="text-end">ΤΕΛΙΚΗ ΤΙΜΗ</th>
+                                    <th>ΕΝΕΡΓΕΙΑ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for line in bid.lines %}
+                                {% if not line.is_combo %}
+                                <tr>
+                                    <td class="text-start ps-2">
+                                        {{ line.description }}
+                                    </td>
+                                    <td>{{ "%.2f"|format(line.qty) }}</td>
+                                    <td>{{ "%.2f"|format(line.unit_price) }} €</td>
+                                    
+                                    <td>
+                                        {% if line.discount_type == 'pct' and line.discount_pct and line.discount_pct > 0 %}
+                                            <span class="text-danger">-{{ "%.2f"|format(line.discount_pct) }}%</span>
+                                        {% elif line.discount_type == 'amt' and line.discount_amount and line.discount_amount > 0 %}
+                                            <span class="text-danger">-{{ "%.2f"|format(line.discount_amount) }} €</span>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="fw-bold">{{ "%.2f"|format(line.line_total) }} €</td>
+                                    <td>
+                                        {% set is_awarded = false %}
+                                        
+                                        {% if not line.is_combo and line.request_item_id in awards and awards[line.request_item_id].bid_id == bid.id %}
+                                            {% set is_awarded = true %}
+                                        {% elif line.is_combo and bid.id in shipping_winning_bid_ids %}
+                                            {% set is_awarded = true %}
+                                        {% endif %}
+
+                                        {% if is_awarded %}
+                                            {% if can_modify %}
+                                            <button class="btn btn-xs btn-danger px-3 shadow-sm unaward-button" 
+                                                    data-req-id="{{ rfq.id }}" 
+                                                    data-request-item-id="{{ line.request_item_id if not line.is_combo else 'shipping' }}"
+                                                    data-bid-id="{{ bid.id }}">Ακύρωση</button>
+                                            {% else %}
+                                                <span class="badge bg-secondary"><i class="bi bi-lock"></i></span>
+                                            {% endif %}
+                                        {% else %}
+                                            {% if can_modify %}
+                                            <button class="btn btn-xs btn-success px-3 shadow-sm award-button" 
+                                                    data-req-id="{{ rfq.id }}" 
+                                                    data-request-item-id="{{ line.request_item_id }}"
+                                                    data-bid-line-id="{{ line.id }}"
+                                                    data-bid-id="{{ bid.id }}"><i class="bi bi-check-lg"></i> Ανάθεση</button>
+                                            {% else %}
+                                                <button disabled class="btn btn-xs btn-outline-secondary px-3 shadow-sm">Ανάθεση</button>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                                
+                                {% for line in bid.lines %}
+                                {% if line.is_combo %}
+                                <tr>
+                                    <td class="text-start ps-2">
+                                        Μεταφορικά / Έξοδα Αποστολής
+                                    </td>
+                                    <td>{{ "%.2f"|format(line.qty) }}</td>
+                                    <td>{{ "%.2f"|format(line.unit_price) }} €</td>
+                                    
+                                    <td>
+                                        {% if line.discount_type == 'pct' and line.discount_pct and line.discount_pct > 0 %}
+                                            <span class="text-danger">-{{ "%.2f"|format(line.discount_pct) }}%</span>
+                                        {% elif line.discount_type == 'amt' and line.discount_amount and line.discount_amount > 0 %}
+                                            <span class="text-danger">-{{ "%.2f"|format(line.discount_amount) }} €</span>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="fw-bold">{{ "%.2f"|format(line.line_total) }} €</td>
+                                    <td>
+                                        {% set is_awarded = false %}
+                                        
+                                        {% if line.is_combo and bid.id in shipping_winning_bid_ids %}
+                                            {% set is_awarded = true %}
+                                        {% endif %}
+
+                                        {% if is_awarded %}
+                                            {% if can_modify %}
+                                            <button class="btn btn-xs btn-danger px-3 shadow-sm unaward-button" 
+                                                    data-req-id="{{ rfq.id }}" 
+                                                    data-request-item-id="shipping"
+                                                    data-bid-id="{{ bid.id }}">Ακύρωση</button>
+                                            {% else %}
+                                                <span class="badge bg-secondary"><i class="bi bi-lock"></i></span>
+                                            {% endif %}
+                                        {% else %}
+                                            {% if can_modify %}
+                                            <button class="btn btn-xs btn-success px-3 shadow-sm award-button" 
+                                                    data-req-id="{{ rfq.id }}" 
+                                                    data-request-item-id="shipping"
+                                                    data-bid-line-id="{{ line.id }}"
+                                                    data-bid-id="{{ bid.id }}"><i class="bi bi-check-lg"></i> Ανάθεση</button>
+                                            {% else %}
+                                                <button disabled class="btn btn-xs btn-outline-secondary px-3 shadow-sm">Ανάθεση</button>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="d-flex align-items-center gap-2 mt-5 mb-4 p-3 bg-white border rounded shadow-sm">
+    {% if is_editable_by_current_user(rfq) or session.get('role') == 'chief' %}
+        {% if rfq.status not in ['closed', 'received', 'cancelled'] %}
+        <a href="{{ url_for('company.edit_request', req_id=rfq.id) }}" class="btn btn-primary px-4 shadow-sm">
+            <i class="bi bi-pencil-square me-1"></i> Επεξεργασία
+        </a>
+        {% endif %}
+    {% endif %}
+
+    <a href="{{ url_for('company.new_request', clone_id=rfq.id) }}" class="btn btn-outline-info px-4 shadow-sm text-dark">
+        <i class="bi bi-copy me-1"></i> Δημιουργία Αντιγράφου
+    </a>
+
+    {% if (is_editable_by_current_user(rfq) or session.get('role') == 'chief') and rfq.status not in ['closed', 'received', 'cancelled'] %}
+    <button type="button" class="btn btn-outline-danger px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#cancelModal">
+        <i class="bi bi-trash3 me-1"></i> Ακύρωση Ζήτησης
+    </button>
+    {% endif %}
+
+    <button type="button" class="btn btn-outline-secondary px-4 shadow-sm text-dark ms-2" data-bs-toggle="modal" data-bs-target="#auditModal">
+        <i class="bi bi-clock-history me-1"></i> Ιστορικό Ενεργειών
+    </button>
+
+    <div class="ms-auto d-flex gap-2">
+        <a href="{{ url_for('company.dashboard') }}" class="btn btn-outline-secondary px-4 shadow-sm">Επιστροφή</a>
+
+        {% if rfq.status == 'pending_final_approval' %}
+            {% if session.get('role') == 'chief' %}
+                <form method="post" action="{{ url_for('admin.revert_approval', req_id=rfq.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-warning px-4 shadow-sm fw-bold">
+                        <i class="bi bi-arrow-return-left me-1"></i> Επιστροφή στον Υπάλληλο
+                    </button>
+                </form>
+                <form method="post" action="{{ url_for('admin.approve_final', req_id=rfq.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-success px-4 shadow-sm fw-bold">
+                        <i class="bi bi-shield-check me-1"></i> Τελική Έγκριση & Κλείσιμο
+                    </button>
+                </form>
+            {% else %}
+                <button class="btn btn-secondary px-4 shadow-sm fw-bold" disabled>
+                    <i class="bi bi-hourglass-split me-1"></i> Αναμονή Έγκρισης
+                </button>
+            {% endif %}
+
+        {% elif rfq.status not in ['closed', 'received', 'cancelled'] and awarded_summary %}
+            {% if session.get('role') == 'chief' %}
+                <button type="button" class="btn btn-success px-4 shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#chiefeFinalizeSummaryModal">
+                    <i class="bi bi-check2-all me-1"></i> Οριστική Ανάθεση & Κλείσιμο
+                </button>
+            {% else %}
+                <button type="button" class="btn btn-success px-4 shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#finalizeModal">
+                    <i class="bi bi-check-circle-fill me-1"></i> Οριστική Ανάθεση
+                </button>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+{% if rfq.status not in ['closed', 'received', 'cancelled'] and awarded_summary and session.get('role') == 'chief' %}
+<div class="modal fade" id="chiefeFinalizeSummaryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-clipboard-check me-2"></i>Σύνοψη Αναθέσεων - Τελική Επιβεβαίωση</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="fs-6 mb-3">Επιβεβαίωση αποστολής στους προμηθευτές:</p>
+        
+        <div class="table-responsive mb-3">
+          <table class="table table-sm table-bordered">
+            <thead class="table-light">
+              <tr class="text-center fw-bold">
+                <th>Προμηθευτής</th>
+                <th>Αριθμός Ειδών</th>
+                <th>Συνολικό Κόστος (€)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sup, data in awarded_summary.items() %}
+              <tr>
+                <td><strong>{{ sup }}</strong></td>
+                <td class="text-center">{{ data['items']|length }}</td>
+                <td class="text-end"><strong>{{ "%.2f"|format(data.final_total) }}</strong> €</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot class="table-light">
+              <tr class="fw-bold">
+                <td colspan="2" class="text-end">Σύνολο:</td>
+                <td class="text-end">{{ "%.2f"|format(grand_total_awarded) }} €</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="alert alert-info mb-3">
+          <i class="bi bi-info-circle me-2"></i>
+          <strong>Σημείωση:</strong> Οι προμηθευτές θα λάβουν ειδοποίηση με τα στοιχεία της ανάθεσης και τα items που τους αναλογούν.
+        </div>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Ακύρωση</button>
+        <form method="post" action="{{ url_for('company.finalize_award', req_id=rfq.id) }}" style="display: inline;">
+            <button type="submit" class="btn btn-success px-4 fw-bold"><i class="bi bi-lock-fill me-1"></i>Οριστική Επιβεβαίωση</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if rfq.status not in ['closed', 'received', 'cancelled'] and awarded_summary and session.get('role') != 'chief' %}
+<div class="modal fade" id="finalizeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-check2-all me-2"></i>Επιβεβαίωση Οριστικής Ανάθεσης</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="fs-6">Είστε σίγουροι ότι θέλετε να οριστικοποιήσετε την ανάθεση για τη ζήτηση <strong>#{{ rfq.id }}</strong>; 
+        <br><span class="text-muted small">Αν το ποσό υπερβαίνει το προσωπικό σας όριο, θα ζητηθεί έγκριση από τον Διευθυντή.</span></p>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Άκυρο</button>
+        <form method="post" action="{{ url_for('admin.approve_final', req_id=rfq.id) }}">
+            <button type="submit" class="btn btn-success px-4 fw-bold"><i class="bi bi-lock-fill me-1"></i>Επιβεβαίωση</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if rfq.status == 'closed' %}
+<div class="modal fade" id="receiptModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-box-seam me-2"></i>Ολοκλήρωση Παραλαβής</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="fs-6">Είστε σίγουροι ότι θέλετε να οριστικοποιήσετε την παραλαβή για τη ζήτηση <strong>#{{ rfq.id }}</strong>;</p>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Άκυρο</button>
+        <button type="button" class="btn btn-success px-4 fw-bold" onclick="document.getElementById('finalizeReceiptInput').value='1'; document.getElementById('receiptForm').submit();">
+            <i class="bi bi-check-lg me-1"></i>Επιβεβαίωση
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle me-2"></i>Ακύρωση Ζήτησης</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="fs-6">Είστε σίγουροι ότι θέλετε να ακυρώσετε/διαγράψετε τη ζήτηση <strong>#{{ rfq.id }}</strong>;</p>
+        <div class="alert alert-danger small mb-0 shadow-sm border-danger">
+            <i class="bi bi-info-circle-fill me-1"></i> Η ζήτηση θα παραμείνει στο σύστημα για ιστορικούς λόγους, αλλά θα απενεργοποιηθεί οριστικά.
+        </div>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Επιστροφή</button>
+        <form method="post" action="{{ url_for('company.cancel_request', req_id=rfq.id) }}">
+            <button type="submit" class="btn btn-danger px-4 fw-bold"><i class="bi bi-trash3 me-1"></i>Επιβεβαίωση Ακύρωσης</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="auditModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title fw-bold text-dark"><i class="bi bi-journal-text me-2"></i>Ιστορικό Ζήτησης #{{ rfq.id }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <ul class="list-group list-group-flush">
+            {% for log in rfq.logs %}
+            <li class="list-group-item p-3">
+                <div class="d-flex justify-content-between mb-1">
+                    <strong class="text-primary small"><i class="bi bi-person-fill me-1"></i>{{ log.user_name }}</strong>
+                    <span class="text-muted" style="font-size: 0.75rem;">{{ log.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                </div>
+                <p class="mb-0 text-dark small">{{ log.action }}</p>
+            </li>
+            {% else %}
+            <li class="list-group-item p-4 text-center text-muted">Δεν βρέθηκαν καταγραφές ιστορικού.</li>
+            {% endfor %}
+        </ul>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Κλείσιμο</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bid Rejection Modals (one per bid) -->
+{% for bid in bids %}
+{% if session.get('role') == 'chief' and rfq.status in ['open', 'pending_final_approval'] and bid.status == 'submitted' %}
+<div class="modal fade" id="rejectBidModal{{ bid.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-x-circle me-2"></i>Απόρριψη Προσφοράς</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{{ url_for('company.reject_bid', req_id=rfq.id, bid_id=bid.id) }}">
+        <div class="modal-body p-4">
+          <p class="mb-3"><strong>Προμηθευτής:</strong> {{ bid.supplier_name }}</p>
+          <label class="form-label fw-bold mb-2">Λόγος Απόρριψης (προαιρετικά)</label>
+          <textarea class="form-control" name="rejection_reason" rows="3" placeholder="π.χ. Τιμή εκτός προϋπολογισμού, μη συμμόρφωση προδιαγραφών..."></textarea>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Άκυρο</button>
+          <button type="submit" class="btn btn-danger px-4 fw-bold"><i class="bi bi-x-lg me-1"></i>Επιβεβαίωση Απόρριψης</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<script>
+const pageKey = window.location.pathname;
+const accordionsKey = 'openAccordions_' + pageKey;
+const scrollKey = 'scrollPos_' + pageKey;
+
+// Αποθήκευση κατάστασης σελίδας (ανοιχτά accordions & scroll position) πριν την ανανέωση
+function savePageState() {
+    const openBids = Array.from(document.querySelectorAll('.collapse.show')).map(el => el.id);
+    sessionStorage.setItem(accordionsKey, JSON.stringify(openBids));
+    sessionStorage.setItem(scrollKey, window.scrollY);
+}
+
+// AJAX Award/Unaward Button Handler with Toggle and Auto-Refresh
+function attachAwardButtonListener(button) {
+    button.addEventListener('click', async function(e) {
+        e.preventDefault();
+        const reqId = this.dataset.reqId;
+        const requestItemId = this.dataset.requestItemId;
+        const bidLineId = this.dataset.bidLineId;
+        const bidId = this.dataset.bidId;
+        
+        // Disable button to prevent double-click
+        button.disabled = true;
+        button.style.opacity = '0.6';
+        
+        try {
+            const formData = new FormData();
+            if (requestItemId) formData.append('request_item_id', requestItemId);
+            if (bidLineId) formData.append('bid_line_id', bidLineId);
+            if (bidId) formData.append('bid_id', bidId);
+            
+            const response = await fetch(`/company/requests/${reqId}/award-item-ajax`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                showAlert('Ανατέθηκε! ✓', 'success');
+                savePageState();
+                setTimeout(() => {
+                    window.location.reload();
+                }, 400);
+            } else {
+                showAlert(data.message || 'Σφάλμα κατά την ανάθεση', 'danger');
+                button.disabled = false;
+                button.style.opacity = '1';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('Σφάλμα επικοινωνίας με το διακομιστή', 'danger');
+            button.disabled = false;
+            button.style.opacity = '1';
+        }
+    });
+}
+
+function attachUnawardButtonListener(button) {
+    button.addEventListener('click', async function(e) {
+        e.preventDefault();
+        const reqId = this.dataset.reqId;
+        const requestItemId = this.dataset.requestItemId;
+        const bidId = this.dataset.bidId;
+        
+        // Disable button to prevent double-click
+        button.disabled = true;
+        button.style.opacity = '0.6';
+        
+        try {
+            const formData = new FormData();
+            if (requestItemId) formData.append('request_item_id', requestItemId);
+            if (bidId) formData.append('bid_id', bidId);
+            
+            const response = await fetch(`/company/requests/${reqId}/unaward-item`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                showAlert('Ακύρωση ✓', 'success');
+                savePageState();
+                setTimeout(() => {
+                    window.location.reload();
+                }, 400);
+            } else {
+                showAlert(data.message || 'Σφάλμα κατά την ακύρωση', 'danger');
+                button.disabled = false;
+                button.style.opacity = '1';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('Σφάλμα επικοινωνίας με το διακομιστή', 'danger');
+            button.disabled = false;
+            button.style.opacity = '1';
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Επαναφορά κατάστασης αν υπάρχει
+    const openBids = JSON.parse(sessionStorage.getItem(accordionsKey) || '[]');
+    openBids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('show');
+    });
+    
+    const scrollPos = sessionStorage.getItem(scrollKey);
+    if (scrollPos) {
+        setTimeout(() => window.scrollTo(0, parseInt(scrollPos)), 50);
+        sessionStorage.removeItem(scrollKey);
+    }
+
+    // 2. Παρακολούθηση των ανοιγμάτων/κλεισιμάτων για άμεση ενημέρωση του storage
+    document.querySelectorAll('.collapse').forEach(el => {
+        el.addEventListener('shown.bs.collapse', function() {
+            let open = JSON.parse(sessionStorage.getItem(accordionsKey) || '[]');
+            if (!open.includes(this.id)) {
+                open.push(this.id);
+                sessionStorage.setItem(accordionsKey, JSON.stringify(open));
+            }
+        });
+        el.addEventListener('hidden.bs.collapse', function() {
+            let open = JSON.parse(sessionStorage.getItem(accordionsKey) || '[]');
+            open = open.filter(id => id !== this.id);
+            sessionStorage.setItem(accordionsKey, JSON.stringify(open));
+        });
+    });
+
+    // 3. Προσθήκη events στα κουμπιά
+    document.querySelectorAll('.award-button').forEach(button => {
+        attachAwardButtonListener(button);
+    });
+    
+    document.querySelectorAll('.unaward-button').forEach(button => {
+        attachUnawardButtonListener(button);
+    });
+});
+
+// Update awarded summary via AJAX
+async function updateAwardedSummary(reqId) {
+    try {
+        const response = await fetch(`/company/requests/${reqId}/get-award-data`);
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update the summary box with new data
+            const summaryBox = document.getElementById('awardSummaryBox');
+            if (summaryBox) {
+                // Update initial subtotal
+                const initialSubtotalEl = document.getElementById('summaryInitialSubtotal');
+                if (initialSubtotalEl) {
+                    initialSubtotalEl.textContent = (data.initial_subtotal).toFixed(2) + ' €';
+                }
+                
+                // Update grand total
+                const grandTotalEl = document.getElementById('summaryGrandTotal');
+                if (grandTotalEl) {
+                    grandTotalEl.textContent = (data.grand_total_awarded).toFixed(2) + ' €';
+                }
+                
+                // Update supplier details
+                const detailsList = summaryBox.querySelector('.summary-details-list');
+                if (detailsList && Object.keys(data.awarded_summary).length > 0) {
+                    let html = '';
+                    for (const [sup, summary] of Object.entries(data.awarded_summary)) {
+                        html += `
+                        <div class="mb-3 pb-2 border-bottom border-light summary-supplier-item">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong class="text-dark"><i class="bi bi-shop me-1"></i>${sup}</strong>
+                                <span class="badge bg-light text-dark border">${summary.final_total.toFixed(2)} €</span>
+                            </div>
+                            <div class="ms-3 small text-muted">
+                                <div class="d-flex justify-content-between">
+                                    <span>Αξία Ειδών:</span>
+                                    <span>${summary.items_subtotal_before_discount.toFixed(2)} €</span>
+                                </div>`;
+                        
+                        if (summary.items_total_discount > 0) {
+                            html += `<div class="d-flex justify-content-between text-danger">
+                                        <span>Εκπτώσεις Ειδών:</span>
+                                        <span>-${summary.items_total_discount.toFixed(2)} €</span>
+                                     </div>`;
+                        }
+                        if (summary.overall_discount > 0) {
+                            html += `<div class="d-flex justify-content-between text-danger">
+                                        <span>Συνολική Έκπτωση:</span>
+                                        <span>-${summary.overall_discount.toFixed(2)} €</span>
+                                     </div>`;
+                        }
+                        if (summary.combo_total > 0) {
+                            html += `<div class="d-flex justify-content-between text-info">
+                                        <span>Μεταφορικά:</span>
+                                        <span>+${summary.combo_total.toFixed(2)} €</span>
+                                     </div>`;
+                        }
+                        html += `</div></div>`;
+                    }
+                    detailsList.innerHTML = html;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error updating summary:', error);
+    }
+}
+
+// Show toast notification
+function showAlert(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+
+</script>
+
+{% endblock %}

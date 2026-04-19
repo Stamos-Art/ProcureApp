@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>Διαχείριση Έργων (Cost Centers)</h3>
+    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addCCModal"><i class="bi bi-plus-lg"></i> Νέο Έργο</button>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Κωδικός</th>
+                    <th>Περιγραφή Έργου</th>
+                    <th>Υπεύθυνος / Τηλέφωνο</th>
+                    <th>Τοποθεσία</th>
+                    <th>Κατάσταση</th>
+                    <th class="text-end">Ενέργειες</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cc in cost_centers %}
+                <tr>
+                    <td class="fw-bold">{{ cc.code }}</td>
+                    <td>
+                        {{ cc.name }}<br>
+                        <small class="text-muted">Παραλαβή: {{ cc.receiving_manager or '-' }}</small>
+                    </td>
+                    <td>
+                        <i class="bi bi-person text-muted"></i> {{ cc.project_manager or '-' }}<br>
+                        <i class="bi bi-telephone text-muted"></i> <small>{{ cc.phone or '-' }}</small>
+                    </td>
+                    <td>
+                        <small><i class="bi bi-geo-alt text-muted"></i> {{ cc.address or '-' }}</small>
+                    </td>
+                    <td>
+                        {% if cc.is_active %}
+                        <span class="badge bg-success">Ενεργό</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Ανενεργό</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end text-nowrap">
+                        <button type="button" class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#editCCModal{{ cc.id }}" title="Επεξεργασία">
+                            <i class="bi bi-pencil-square"></i>
+                        </button>
+                        
+                        <form method="post" action="{{ url_for('admin.toggle_cost_center', cc_id=cc.id) }}" class="d-inline">
+                            {% if cc.is_active %}
+                            <button class="btn btn-sm btn-outline-danger" title="Απενεργοποίηση"><i class="bi bi-pause-fill"></i></button>
+                            {% else %}
+                            <button class="btn btn-sm btn-outline-success" title="Ενεργοποίηση"><i class="bi bi-play-fill"></i></button>
+                            {% endif %}
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center py-4 text-muted">Δεν βρέθηκαν έργα.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% for cc in cost_centers %}
+<div class="modal fade" id="editCCModal{{ cc.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content" method="post" action="{{ url_for('admin.cost_center_edit', cc_id=cc.id) }}">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title"><i class="bi bi-pencil-square"></i> Επεξεργασία Έργου: {{ cc.code }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-start">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Κωδικός <span class="text-danger">*</span></label>
+                        <input type="text" name="code" class="form-control" required value="{{ cc.code }}">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label">Περιγραφή Έργου <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" required value="{{ cc.name }}">
+                    </div>
+                    
+                    <div class="col-12"><hr class="my-2"></div>
+                    <div class="col-12">
+                        <h6 class="text-muted mb-3">Στοιχεία Επικοινωνίας & Τοποθεσίας</h6>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Υπεύθυνος Έργου</label>
+                        <input type="text" name="project_manager" class="form-control" value="{{ cc.project_manager or '' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Υπεύθυνος Παραλαβής</label>
+                        <input type="text" name="receiving_manager" class="form-control" value="{{ cc.receiving_manager or '' }}">
+                    </div>
+                    
+                    <div class="col-md-8">
+                        <label class="form-label">Διεύθυνση / Τοποθεσία Έργου</label>
+                        <input type="text" name="address" class="form-control" value="{{ cc.address or '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Τηλέφωνο Επικοινωνίας</label>
+                        <input type="text" name="phone" class="form-control" value="{{ cc.phone or '' }}">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Αποθήκευση Αλλαγών</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+<div class="modal fade" id="addCCModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content" method="post" action="{{ url_for('admin.cost_center_new') }}">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title"><i class="bi bi-building"></i> Προσθήκη Νέου Έργου</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-start">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Κωδικός <span class="text-danger">*</span></label>
+                        <input type="text" name="code" class="form-control" required placeholder="π.χ. PRJ-001">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label">Περιγραφή Έργου <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" required placeholder="π.χ. Κατασκευή Γέφυρας">
+                    </div>
+                    
+                    <div class="col-12"><hr class="my-2"></div>
+                    <div class="col-12">
+                        <h6 class="text-muted mb-3">Στοιχεία Επικοινωνίας & Τοποθεσίας</h6>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Υπεύθυνος Έργου</label>
+                        <input type="text" name="project_manager" class="form-control" placeholder="Ονοματεπώνυμο">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Υπεύθυνος Παραλαβής</label>
+                        <input type="text" name="receiving_manager" class="form-control" placeholder="Ονοματεπώνυμο">
+                    </div>
+                    
+                    <div class="col-md-8">
+                        <label class="form-label">Διεύθυνση / Τοποθεσία Έργου</label>
+                        <input type="text" name="address" class="form-control" placeholder="Οδός, Αριθμός, Περιοχή">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Τηλέφωνο Επικοινωνίας</label>
+                        <input type="text" name="phone" class="form-control" placeholder="π.χ. 210...">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button>
+                <button type="submit" class="btn btn-success"><i class="bi bi-check-lg"></i> Δημιουργία</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

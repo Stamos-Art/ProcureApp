@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+
+{% block title %}Insights Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header with Export Buttons -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-5 fw-bold">
+                        <i class="fas fa-chart-line text-primary"></i> Insights Dashboard
+                    </h1>
+                    <p class="text-muted">Real-time procurement analytics and performance analysis</p>
+                </div>
+                <div class="btn-group" role="group">
+                    <a href="/insights/export-pdf" class="btn btn-outline-danger" title="Export as PDF">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </a>
+                    <a href="/insights/export-csv" class="btn btn-outline-success" title="Export as CSV">
+                        <i class="fas fa-file-csv"></i> CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="row mb-4" id="kpi-cards">
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="card border-left-primary shadow h-100">
+                <div class="card-body">
+                    <div class="text-primary font-weight-bold text-uppercase mb-1">Total Spend</div>
+                    <div class="h3 mb-0" id="kpi-spend">€0</div>
+                    <small class="text-muted">All suppliers</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="card border-left-success shadow h-100">
+                <div class="card-body">
+                    <div class="text-success font-weight-bold text-uppercase mb-1">Active RFQs</div>
+                    <div class="h3 mb-0" id="kpi-active">0</div>
+                    <small class="text-muted">Awaiting response</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="card border-left-info shadow h-100">
+                <div class="card-body">
+                    <div class="text-info font-weight-bold text-uppercase mb-1">Suppliers</div>
+                    <div class="h3 mb-0" id="kpi-suppliers">0</div>
+                    <small class="text-muted">Active vendors</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="card border-left-warning shadow h-100">
+                <div class="card-body">
+                    <div class="text-warning font-weight-bold text-uppercase mb-1">Avg Bids/RFQ</div>
+                    <div class="h3 mb-0" id="kpi-bids">0</div>
+                    <small class="text-muted">Competition level</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+                <i class="fas fa-dashboard"></i> Overview
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="suppliers-tab" data-bs-toggle="tab" data-bs-target="#suppliers" type="button" role="tab">
+                <i class="fas fa-users"></i> Supplier Performance
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="costs-tab" data-bs-toggle="tab" data-bs-target="#costs" type="button" role="tab">
+                <i class="fas fa-euro-sign"></i> Cost Analysis
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="timeline-tab" data-bs-toggle="tab" data-bs-target="#timeline" type="button" role="tab">
+                <i class="fas fa-clock"></i> Timeline & Delivery
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="risk-tab" data-bs-toggle="tab" data-bs-target="#risk" type="button" role="tab">
+                <i class="fas fa-exclamation-triangle"></i> Risk Analysis
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="trends-tab" data-bs-toggle="tab" data-bs-target="#trends" type="button" role="tab">
+                <i class="fas fa-arrow-trending-up"></i> Trends & Forecast
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        
+        <!-- TAB 1: OVERVIEW -->
+        <div class="tab-pane fade show active" id="overview" role="tabpanel">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card shadow">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">RFQ Volume Trend</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="chart-rfq-trend"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card shadow">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">RFQ Status Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="chart-status-distribution"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: SUPPLIER PERFORMANCE -->
+        <div class="tab-pane fade" id="suppliers" role="tabpanel">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Supplier Performance Scorecard</h5>
+                </div>
+                <div class="card-body">
+                    <div id="chart-supplier-performance"></div>
+                </div>
+            </div>
+            <div class="card shadow mt-3">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Win Rate vs On-Time Delivery</h5>
+                </div>
+                <div class="card-body">
+                    <div id="chart-supplier-bubble"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: COST ANALYSIS -->
+        <div class="tab-pane fade" id="costs" role="tabpanel">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Cost by Supplier (Monthly Trend)</h5>
+                </div>
+                <div class="card-body">
+                    <div id="chart-cost-trend"></div>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-lg-6">
+                    <div class="card shadow">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">Cost Distribution by Supplier</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="chart-cost-pie"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card shadow">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">Top Suppliers by Spend</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="chart-cost-bar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: TIMELINE & DELIVERY -->
+        <div class="tab-pane fade" id="timeline" role="tabpanel">
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="card shadow">
+                        <div class="card-header bg-warning text-white">
+                            <h5 class="mb-0">Avg Approval Days (by Status)</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="chart-approval-days"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card shadow">
+                        <div class="card-header bg-warning text-white">
+                            <h5 class="mb-0">On-Time Delivery Rate</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="chart-ontime-gauge"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card shadow mt-3">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">Fulfillment Timeline Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <div id="chart-fulfillment-days"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: RISK ANALYSIS -->
+        <div class="tab-pane fade" id="risk" role="tabpanel">
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Supplier Risk Assessment</h5>
+                </div>
+                <div class="card-body">
+                    <div id="chart-risk-heatmap"></div>
+                </div>
+            </div>
+            <div class="card shadow mt-3">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Risk Factor Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <div id="chart-risk-breakdown"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 6: TRENDS & FORECAST -->
+        <div class="tab-pane fade" id="trends" role="tabpanel">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Spend Forecast (Next 3 Months)</h5>
+                </div>
+                <div class="card-body">
+                    <div id="chart-spend-forecast"></div>
+                </div>
+            </div>
+            <div class="card shadow mt-3">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">RFQ Volume Forecast</h5>
+                </div>
+                <div class="card-body">
+                    <div id="chart-volume-forecast"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ApexCharts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/apexcharts/3.45.0/apexcharts.min.js"></script>
+
+<!-- Custom Charts Script -->
+<script src="{{ url_for('static', filename='js/insights-charts.js') }}"></script>
+
+<script>
+    // Load data on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadInsightsData();
+    });
+
+    function loadInsightsData() {
+        // Show loading state
+        const chartPlaceholders = document.querySelectorAll('[id^="chart-"]');
+        chartPlaceholders.forEach(el => {
+            el.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+        });
+
+        fetch('/api/insights-data')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('API returned status ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Insights data loaded:', data);
+                renderAllCharts(data);
+                updateKPIs(data.kpis || {});
+            })
+            .catch(error => {
+                console.error('Error loading insights:', error);
+                chartPlaceholders.forEach(el => {
+                    el.innerHTML = '<div class="alert alert-danger m-3">Error loading data. Check console for details.</div>';
+                });
+            });
+    }
+
+    function updateKPIs(kpis) {
+        try {
+            const spend = (kpis.total_spend || 0) / 1000;
+            document.getElementById('kpi-spend').textContent = '€' + spend.toFixed(1) + 'K';
+            document.getElementById('kpi-active').textContent = kpis.active_rfqs || 0;
+            document.getElementById('kpi-suppliers').textContent = kpis.supplier_count || 0;
+            document.getElementById('kpi-bids').textContent = (kpis.avg_bids_per_rfq || 0).toFixed(1);
+        } catch (e) {
+            console.error('Error updating KPIs:', e);
+        }
+    }
+</script>
+
+<style>
+    .card {
+        border: none;
+    }
+
+    .card-header {
+        border-bottom: 2px solid rgba(0,0,0,.1);
+        font-weight: 600;
+    }
+
+    .border-left-primary {
+        border-left: .25rem solid #007bff !important;
+    }
+
+    .border-left-success {
+        border-left: .25rem solid #28a745 !important;
+    }
+
+    .border-left-info {
+        border-left: .25rem solid #17a2b8 !important;
+    }
+
+    .border-left-warning {
+        border-left: .25rem solid #ffc107 !important;
+    }
+
+    .border-left-danger {
+        border-left: .25rem solid #dc3545 !important;
+    }
+
+    .h3 {
+        color: #333;
+        font-weight: bold;
+    }
+
+    .apexcharts-canvas {
+        margin: 0 auto;
+    }
+
+    .nav-tabs .nav-link {
+        color: #495057;
+        border: none;
+        border-radius: 0.375rem 0.375rem 0 0;
+    }
+
+    .nav-tabs .nav-link.active {
+        background-color: #f8f9fa;
+        border-bottom: 3px solid #007bff;
+        color: #007bff;
+        font-weight: 600;
+    }
+
+    .nav-tabs .nav-link:hover {
+        border-color: transparent;
+        background-color: #e9ecef;
+    }
+</style>
+
+{% endblock %}

@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Πίνακας Ελέγχου Προμηθευτή{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5">
+  <!-- Page Header -->
+  <div class="mb-5">
+    <div>
+      <h1 class="h2 fw-bold text-dark mb-2">Πίνακας Ελέγχου Προμηθευτή</h1>
+      <p class="text-muted">Καλώς ήρθατε! Εδώ είναι η τρέχουσα κατάστασή σας και οι ενεργές ζητήσεις.</p>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="row g-4 mb-5">
+    <!-- Pending RFQs -->
+    <div class="col-md-6 col-lg-3">
+      <div class="card border-0 shadow-sm h-100 hover-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <p class="text-muted small mb-2 fw-semibold">Εκκρεμείς Ζητήσεις</p>
+              <h2 class="display-4 fw-bold text-primary mb-0">{{ pending_count }}</h2>
+            </div>
+            <div class="badge bg-primary-subtle text-primary rounded-circle p-3">
+              <i class="bi bi-inbox fs-5"></i>
+            </div>
+          </div>
+          <small class="text-muted"><i class="bi bi-arrow-right-short"></i>Προς υποβολή προσφοράς</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submitted Bids -->
+    <div class="col-md-6 col-lg-3">
+      <div class="card border-0 shadow-sm h-100 hover-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <p class="text-muted small mb-2 fw-semibold">Υποβληθείσες</p>
+              <h2 class="display-4 fw-bold text-success mb-0">{{ submitted_count }}</h2>
+            </div>
+            <div class="badge bg-success-subtle text-success rounded-circle p-3">
+              <i class="bi bi-send-check fs-5"></i>
+            </div>
+          </div>
+          <small class="text-muted"><i class="bi bi-hourglass-split"></i>Σε αναμονή αξιολόγησης</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Won Awards -->
+    <div class="col-md-6 col-lg-3">
+      <div class="card border-0 shadow-sm h-100 hover-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <p class="text-muted small mb-2 fw-semibold">Κερδισμένες</p>
+              <h2 class="display-4 fw-bold text-warning mb-0">{{ awards_count }}</h2>
+            </div>
+            <div class="badge bg-warning-subtle text-warning rounded-circle p-3">
+              <i class="bi bi-trophy fs-5"></i>
+            </div>
+          </div>
+          <small class="text-muted"><i class="bi bi-check-circle"></i>Ανατεθείσες παραγγελίες</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total Value -->
+    <div class="col-md-6 col-lg-3">
+      <div class="card border-0 shadow-sm h-100 hover-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <p class="text-muted small mb-2 fw-semibold">Σύνολο Ζητήσεων</p>
+              <h2 class="display-4 fw-bold text-info mb-0">{{ rfqs|length if rfqs else 0 }}</h2>
+            </div>
+            <div class="badge bg-info-subtle text-info rounded-circle p-3">
+              <i class="bi bi-files fs-5"></i>
+            </div>
+          </div>
+          <small class="text-muted"><i class="bi bi-list-check"></i>Διαθέσιμες ζητήσεις</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Open RFQs Section -->
+  <div class="mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h3 class="fw-bold text-dark mb-1">Ανοιχτές Ζητήσεις</h3>
+        <p class="text-muted small mb-0">Δώστε τις προσφορές σας για τις παρακάτω ζητήσεις</p>
+      </div>
+      <a href="{{ url_for('supplier.history') }}" class="btn btn-outline-primary">
+        <i class="bi bi-clock-history me-2"></i>Ιστορικό
+      </a>
+    </div>
+
+    {% if rfqs %}
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="bg-light border-bottom">
+            <tr>
+              <th class="ps-4 fw-semibold">Αριθμός</th>
+              <th class="fw-semibold">Τίτλος</th>
+              <th class="fw-semibold">Τόπος Παράδοσης</th>
+              <th class="fw-semibold">Προθεσμία</th>
+              <th class="fw-semibold text-center">Κατάσταση</th>
+              <th class="text-end pe-4 fw-semibold">Ενέργειες</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rfq in rfqs %}
+            <tr>
+              <td class="ps-4 fw-bold text-primary">#{{ rfq.id }}</td>
+              <td>
+                <span class="fw-semibold">{{ rfq.title }}</span>
+              </td>
+              <td>
+                <small class="text-muted">{{ rfq.delivery_location or '-' }}</small>
+              </td>
+              <td>
+                {% if rfq.submit_deadline %}
+                  <small class="fw-semibold">{{ rfq.submit_deadline.strftime('%d/%m/%Y') }}</small>
+                {% else %}
+                  <small class="text-muted">-</small>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if bids_map and rfq.id in bids_map %}
+                  {% if bids_map[rfq.id].status == 'submitted' %}
+                    <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">
+                      <i class="bi bi-check-circle me-1"></i>Υποβληθείσα
+                    </span>
+                  {% else %}
+                    <span class="badge bg-warning-subtle text-warning rounded-pill px-3 py-2">
+                      <i class="bi bi-pencil me-1"></i>Πρόχειρο
+                    </span>
+                  {% endif %}
+                {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-2">
+                    <i class="bi bi-hourglass me-1"></i>Δεν ξεκίνησε
+                  </span>
+                {% endif %}
+              </td>
+              <td class="text-end pe-4">
+                <a href="{{ url_for('supplier.bid', req_id=rfq.id) }}" class="btn btn-sm btn-outline-primary">
+                  {% if bids_map and rfq.id in bids_map %}
+                    <i class="bi bi-pencil me-1"></i>Επεξεργασία
+                  {% else %}
+                    <i class="bi bi-plus-circle me-1"></i>Υποβολή
+                  {% endif %}
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center py-5">
+        <div class="mb-3">
+          <i class="bi bi-inbox display-1 text-muted opacity-50"></i>
+        </div>
+        <h5 class="fw-bold text-dark">Δεν υπάρχουν ενεργές ζητήσεις</h5>
+        <p class="text-muted mb-0">Αυτή τη στιγμή δεν έχετε ζητήσεις προς τιμολόγηση. Θα ενημερωθείτε όταν υπάρξουν νέες.</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Awarded Orders Section -->
+  {% if awarded_rfqs %}
+  <div class="mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h3 class="fw-bold text-dark mb-1"><i class="bi bi-trophy me-2 text-success"></i>Κερδισμένες Παραγγελίες</h3>
+        <p class="text-muted small mb-0">Παραγγελίες που σας έχουν ανατεθεί επίσημα</p>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="bg-success-subtle border-bottom">
+            <tr>
+              <th class="ps-4 fw-semibold text-success">Αριθμός</th>
+              <th class="fw-semibold text-success">Τίτλος</th>
+              <th class="fw-semibold text-success">Τόπος Παράδοσης</th>
+              <th class="fw-semibold text-center text-success">Κατάσταση</th>
+              <th class="text-end pe-4 fw-semibold text-success">Ενέργειες</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rfq in awarded_rfqs %}
+            <tr>
+              <td class="ps-4 fw-bold text-success">#{{ rfq.id }}</td>
+              <td>
+                <span class="fw-semibold">{{ rfq.title }}</span>
+              </td>
+              <td>
+                <small class="text-muted">{{ rfq.delivery_location or '-' }}</small>
+              </td>
+              <td class="text-center">
+                <span class="badge bg-success rounded-pill px-3 py-2">
+                  <i class="bi bi-box-seam me-1"></i>Ανατεθείσα
+                </span>
+              </td>
+              <td class="text-end pe-4">
+                <a href="{{ url_for('supplier.bid', req_id=rfq.id) }}" class="btn btn-sm btn-outline-success">
+                  <i class="bi bi-eye me-1"></i>Προβολή
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+.hover-card {
+  transition: all 0.3s ease;
+}
+
+.hover-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.display-4 {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+</style>
+
+{% endblock %}

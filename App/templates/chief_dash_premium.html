@@ -1,0 +1,502 @@
+{% extends "base_premium.html" %}
+
+{% block extra_css %}
+<style>
+    /* ═══════════════════════════════════════════════════════════════ */
+    /* CHIEF DASHBOARD - PREMIUM STYLING                               */
+    /* ═══════════════════════════════════════════════════════════════ */
+    
+    /* Page Header */
+    .dashboard-intro {
+        margin-bottom: var(--space-8);
+        animation: slideDown var(--duration-300) var(--ease-out);
+    }
+    
+    .dashboard-intro h1 {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        margin-bottom: var(--space-2);
+        font-size: var(--text-3xl);
+    }
+    
+    .dashboard-intro h1 i {
+        font-size: var(--text-2xl);
+        color: var(--color-primary-blue);
+    }
+    
+    .dashboard-intro p {
+        color: var(--text-secondary);
+        font-size: var(--text-base);
+        margin: 0;
+    }
+    
+    /* KPI Grid */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: var(--space-4);
+        margin-bottom: var(--space-8);
+    }
+    
+    @media (max-width: 1024px) {
+        .kpi-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .kpi-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    /* Stagger animations for KPI cards */
+    .card-kpi:nth-child(1) { animation: slideUp var(--duration-300) 0ms var(--ease-out); }
+    .card-kpi:nth-child(2) { animation: slideUp var(--duration-300) 100ms var(--ease-out); }
+    .card-kpi:nth-child(3) { animation: slideUp var(--duration-300) 200ms var(--ease-out); }
+    .card-kpi:nth-child(4) { animation: slideUp var(--duration-300) 300ms var(--ease-out); }
+    
+    /* Content Grid (Tables & Charts) */
+    .dashboard-content {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: var(--space-6);
+        margin-bottom: var(--space-8);
+    }
+    
+    @media (max-width: 1200px) {
+        .dashboard-content {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .table-wrapper {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-xl);
+        overflow: hidden;
+        box-shadow: var(--shadow-xs);
+        animation: slideUp var(--duration-300) 400ms var(--ease-out) backwards;
+    }
+    
+    .table-wrapper:hover {
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary-blue);
+    }
+    
+    /* Table Styling */
+    .table-wrapper .card-title {
+        padding: var(--space-6) var(--space-6) var(--space-4) var(--space-6);
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .table-wrapper .table {
+        margin: 0;
+    }
+    
+    .table-wrapper .table th {
+        background: var(--bg-tertiary);
+        border-bottom: 2px solid var(--border-color);
+    }
+    
+    .table-wrapper .table tbody tr {
+        border-bottom: 1px solid var(--border-color);
+        transition: background-color var(--duration-150) var(--ease-in-out));
+    }
+    
+    .table-wrapper .table tbody tr:last-child {
+        border-bottom: none;
+    }
+    
+    .table-wrapper .table tbody tr:hover {
+        background-color: var(--bg-secondary);
+    }
+    
+    /* Action Buttons in Tables */
+    .btn-table {
+        padding: var(--space-1-5) var(--space-2-5);
+        font-size: var(--text-xs);
+        white-space: nowrap;
+    }
+    
+    /* Status Badge Columns */
+    .status-cell {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+    }
+    
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: var(--radius-full);
+        flex-shrink: 0;
+    }
+    
+    .status-dot.pending {
+        background: var(--color-warning);
+        animation: pulse var(--duration-2000) infinite;
+    }
+    
+    .status-dot.approved {
+        background: var(--color-success);
+    }
+    
+    .status-dot.rejected {
+        background: var(--color-danger);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: var(--space-12) var(--space-6);
+        color: var(--text-secondary);
+    }
+    
+    .empty-state-icon {
+        font-size: var(--text-5xl);
+        margin-bottom: var(--space-4);
+        opacity: 0.5;
+    }
+    
+    .empty-state h3 {
+        color: var(--text-primary);
+        margin-bottom: var(--space-2);
+    }
+    
+    /* Load More Button */
+    .card-footer {
+        padding: var(--space-4) var(--space-6);
+        border-top: 1px solid var(--border-color);
+        text-align: center;
+    }
+    
+    .card-footer a {
+        color: var(--color-primary-blue);
+        font-weight: var(--font-semibold);
+        text-decoration: none;
+        transition: color var(--duration-200) var(--ease-in-out));
+    }
+    
+    .card-footer a:hover {
+        color: var(--color-primary-accent);
+    }
+    
+    /* Counter Animation */
+    @keyframes countUp {
+        from {
+            opacity: 0;
+            transform: scale(0.8);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    
+    .kpi-value {
+        animation: countUp var(--duration-500) var(--ease-out);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ═════════════════════════════════════════════════════════════════ -->
+<!-- DASHBOARD HEADER                                                  -->
+<!-- ═════════════════════════════════════════════════════════════════ -->
+
+<div class="dashboard-intro">
+    <h1>
+        <i class="bi bi-graph-up"></i>
+        Σύνοψη Διαχείρισης Ζητήσεων
+    </h1>
+    <p>Έλεγχος και έγκριση προμηθειών σε πραγματικό χρόνο</p>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════ -->
+<!-- KPI CARDS GRID                                                    -->
+<!-- ═════════════════════════════════════════════════════════════════ -->
+
+<div class="kpi-grid">
+    <!-- KPI 1: Pending Approvals -->
+    <div class="card-kpi">
+        <div class="kpi-header">
+            <h3 class="kpi-title">
+                <i class="bi bi-hourglass-split" style="margin-right: var(--space-2); color: var(--color-warning);"></i>
+                Προς Έγκριση
+            </h3>
+            <div class="kpi-icon">📋</div>
+        </div>
+        
+        <div class="kpi-content">
+            <div class="kpi-value">{{ rfqs_pending|length }}</div>
+            <div class="kpi-subtitle">Ζητήσεις σε αναμονή</div>
+        </div>
+        
+        <div class="kpi-footer">
+            <span class="kpi-change trending-up">
+                <i class="bi bi-arrow-up-short"></i> 
+                {% if rfqs_pending|length > 5 %}Απαιτείται άμεση ενέργεια{% else %}Normal{% endif %}
+            </span>
+            <a href="{{ url_for('company.request_detail', req_id=rfqs_pending[0].id) if rfqs_pending else '#' }}" class="kpi-link">
+                Προβολή <i class="bi bi-chevron-right"></i>
+            </a>
+        </div>
+    </div>
+    
+    <!-- KPI 2: Total Budget -->
+    <div class="card-kpi">
+        <div class="kpi-header">
+            <h3 class="kpi-title">
+                <i class="bi bi-cash-coin" style="margin-right: var(--space-2); color: var(--color-primary-blue);"></i>
+                Συνολικό Προϋπολογισμό
+            </h3>
+            <div class="kpi-icon">💰</div>
+        </div>
+        
+        <div class="kpi-content">
+            <div class="kpi-value">{{ "%.1f"|format((total_budget or 0)/1000) }}K€</div>
+            <div class="kpi-subtitle">Σε δραστηριότητα</div>
+        </div>
+        
+        <div class="kpi-footer">
+            <span class="kpi-change trending-{{ 'up' if (total_budget or 0) > 100000 else 'down' }}">
+                <i class="bi bi-arrow-{{ 'up' if (total_budget or 0) > 100000 else 'down' }}-short"></i>
+                {{ "%.0f"|format(((total_budget or 0) / 100000 * 100) - 100) }}% MoM
+            </span>
+        </div>
+    </div>
+    
+    <!-- KPI 3: Bids Received -->
+    <div class="card-kpi">
+        <div class="kpi-header">
+            <h3 class="kpi-title">
+                <i class="bi bi-inbox-fill" style="margin-right: var(--space-2); color: var(--color-success);"></i>
+                Προσφορές Λήφθησαν
+            </h3>
+            <div class="kpi-icon">📬</div>
+        </div>
+        
+        <div class="kpi-content">
+            <div class="kpi-value">{{ total_bids or 0 }}</div>
+            <div class="kpi-subtitle">Συνολικές προσφορές</div>
+        </div>
+        
+        <div class="kpi-footer">
+            <span class="kpi-change trending-up">
+                <i class="bi bi-arrow-up-short"></i> 
+                {% set bid_rate = ((total_bids or 0) / (rfqs_open or 1) * 100)|int %}
+                {{ bid_rate }}% coverage
+            </span>
+        </div>
+    </div>
+    
+    <!-- KPI 4: Awarded Contracts -->
+    <div class="card-kpi">
+        <div class="kpi-header">
+            <h3 class="kpi-title">
+                <i class="bi bi-trophy-fill" style="margin-right: var(--space-2); color: var(--color-warning);"></i>
+                Ανατεθειμένα
+            </h3>
+            <div class="kpi-icon">🏆</div>
+        </div>
+        
+        <div class="kpi-content">
+            <div class="kpi-value">{{ (rfqs_awarded or 0)|string[-2:] }}</div>
+            <div class="kpi-subtitle">Completed procurements</div>
+        </div>
+        
+        <div class="kpi-footer">
+            <span class="kpi-change trending-up">
+                <i class="bi bi-arrow-up-short"></i> 
+                {{ (rfqs_awarded or 0) }} this month
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════ -->
+<!-- CONTENT AREA: TABLES & CHARTS                                     -->
+<!-- ═════════════════════════════════════════════════════════════════ -->
+
+<div class="dashboard-content">
+    <!-- PENDING APPROVALS TABLE -->
+    <div class="table-wrapper">
+        <h2 class="card-title">
+            <i class="bi bi-exclamation-triangle" style="color: var(--color-warning); margin-right: var(--space-2);"></i>
+            Ζητήσεις σε Αναμονή Έγκρισης
+        </h2>
+        
+        {% if rfqs_pending %}
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">ID</th>
+                        <th>Τίτλος</th>
+                        <th>Δημιουργός</th>
+                        <th>Δημ. Ημερ.</th>
+                        <th style="width: 120px;">Ενέργεια</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rfq in rfqs_pending[:5] %}
+                        <tr>
+                            <td class="fw-bold text-primary">#{{ rfq.id }}</td>
+                            <td>
+                                <div style="font-weight: 600; color: var(--text-primary);">{{ rfq.title }}</div>
+                                <small style="color: var(--text-secondary);">{{ rfq.cost_center.name if rfq.cost_center else 'N/A' }}</small>
+                            </td>
+                            <td>{{ rfq.created_by }}</td>
+                            <td><small>{{ rfq.created_at.strftime('%d/%m/%y') }}</small></td>
+                            <td>
+                                <a href="{{ url_for('company.request_detail', req_id=rfq.id) }}" 
+                                   class="btn btn-sm btn-primary btn-table">
+                                    <i class="bi bi-check-circle"></i> Έγκρ.
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            {% if rfqs_pending|length > 5 %}
+                <div class="card-footer">
+                    <a href="#">Προβολή όλων ({{ rfqs_pending|length }}) →</a>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">✓</div>
+                <h3>Καμία ζήτηση σε αναμονή</h3>
+                <p>Όλες οι ζητήσεις προμηθειών έχουν εγκριθεί</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- QUICK STATS SIDEBAR -->
+    <div>
+        <!-- Quick Stats Card 1 -->
+        <div class="card" style="margin-bottom: var(--space-4);">
+            <h3 class="card-title" style="font-size: var(--text-lg);">
+                <i class="bi bi-speedometer2" style="margin-right: var(--space-1);"></i>
+                Quick Stats
+            </h3>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-4) 0; border-bottom: 1px solid var(--border-color);">
+                <span style="color: var(--text-secondary);">Μέσος χρόνος έγκρισης</span>
+                <span style="font-weight: 700; font-size: var(--text-lg);">2.4 ημ.</span>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-4) 0; border-bottom: 1px solid var(--border-color);">
+                <span style="color: var(--text-secondary);">Ενεργές ζητήσεις</span>
+                <span style="font-weight: 700; font-size: var(--text-lg); color: var(--color-primary-blue);">{{ rfqs_open or 0 }}</span>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-4) 0;">
+                <span style="color: var(--text-secondary);">Αναλογία έγκρισης</span>
+                <span style="font-weight: 700;color: var(--color-success);">98.5%</span>
+            </div>
+        </div>
+        
+        <!-- Supplier Performance Card -->
+        <div class="card">
+            <h3 class="card-title" style="font-size: var(--text-lg); margin-bottom: var(--space-3);">
+                <i class="bi bi-star-fill" style="margin-right: var(--space-1); color: var(--color-warning);"></i>
+                Top Suppliers
+            </h3>
+            
+            <div style="space-y: var(--space-3);">
+                {% set suppliers = [
+                    {'name': 'Acme Corp', 'rating': 4.8},
+                    {'name': 'Tech Solutions', 'rating': 4.6},
+                    {'name': 'Global Logistics', 'rating': 4.4}
+                ] %}
+                
+                {% for supplier in suppliers %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-3) 0; border-bottom: 1px solid var(--border-color);">
+                        <span style="font-weight: 500;">{{ supplier.name }}</span>
+                        <div style="display: flex; align-items: center; gap: var(--space-1);">
+                            <span style="font-weight: 700;">{{ supplier.rating }}</span>
+                            <i class="bi bi-star-fill" style="color: var(--color-warning); font-size: var(--text-sm);"></i>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════ -->
+<!-- RECENT ACTIVITY TABLE                                             -->
+<!-- ═════════════════════════════════════════════════════════════════ -->
+
+<div class="table-wrapper" style="animation: slideUp var(--duration-300) 500ms var(--ease-out) backwards;">
+    <h2 class="card-title">
+        <i class="bi bi-clock-history" style="color: var(--color-primary-blue); margin-right: var(--space-2);"></i>
+        Πρόσφατες Δραστηριότητες
+    </h2>
+    
+    {% set recent_rfqs = rfqs_other[:10] if rfqs_other else [] %}
+    {% if recent_rfqs %}
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">ID</th>
+                    <th>Τίτλος</th>
+                    <th>Κατάσταση</th>
+                    <th>Δημιουργός</th>
+                    <th>Τελευταία Ενημέρωση</th>
+                    <th style="width: 100px;">Ενέργεια</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rfq in recent_rfqs %}
+                    {% set p = phase_info(rfq) %}
+                    <tr>
+                        <td class="fw-bold text-primary">#{{ rfq.id }}</td>
+                        <td>
+                            <div style="font-weight: 600;">{{ rfq.title }}</div>
+                        </td>
+                        <td>
+                            <span class="badge {{ p.badge }}">
+                                <i class="bi {{ p.icon }}"></i> {{ p.label }}
+                            </span>
+                        </td>
+                        <td>{{ rfq.created_by }}</td>
+                        <td><small>{{ rfq.status_changed_at.strftime('%d/%m/%y %H:%M') if rfq.status_changed_at else 'N/A' }}</small></td>
+                        <td>
+                            <a href="{{ url_for('company.request_detail', req_id=rfq.id) }}" 
+                               class="btn btn-sm btn-outline btn-table">
+                                Προβολή
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <h3>Δεν υπάρχουν δραστηριότητες</h3>
+            <p>Δεν υπάρχουν πρόσφατες ζητήσεις</p>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Stagger animation for KPI values
+    document.addEventListener('DOMContentLoaded', function() {
+        const kpiValues = document.querySelectorAll('.kpi-value');
+        
+        kpiValues.forEach((el, i) => {
+            setTimeout(() => {
+                el.style.animation = 'countUp 0.5s ease-out';
+            }, i * 100);
+        });
+    });
+</script>
+{% endblock %}

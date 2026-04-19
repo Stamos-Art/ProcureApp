@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-end mb-4 border-bottom pb-3">
+    <div>
+        <h3 class="fw-bolder text-dark mb-1"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Executive Analytics</h3>
+        <p class="text-muted small mb-0">Συνολική εικόνα απόδοσης και εξόδων τμήματος προμηθειών.</p>
+    </div>
+    
+    <form method="get" class="d-flex align-items-center gap-2 bg-white p-2 rounded-3 shadow-sm border">
+        <span class="small fw-bold text-muted ms-2">Περίοδος:</span>
+        <input type="date" name="start_date" class="form-control form-control-sm border-0 bg-light" value="{{ data.filters.start }}">
+        <span class="text-muted">-</span>
+        <input type="date" name="end_date" class="form-control form-control-sm border-0 bg-light" value="{{ data.filters.end }}">
+        <button type="submit" class="btn btn-sm btn-dark px-3 fw-bold">Εφαρμογή</button>
+        <a href="{{ url_for('admin.analytics') }}" class="btn btn-sm btn-outline-secondary" title="Καθαρισμός Φίλτρων"><i class="bi bi-arrow-counterclockwise"></i></a>
+    </form>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-primary text-white">
+            <div class="card-body p-4 position-relative overflow-hidden">
+                <div class="small fw-bold text-uppercase opacity-75 mb-1">Συνολικα Εξοδα</div>
+                <div class="h3 fw-bolder mb-0">{{ "{:,.2f}".format(data.kpis.spend).replace(',', 'X').replace('.', ',').replace('X', '.') }} €</div>
+                <i class="bi bi-currency-euro position-absolute opacity-25" style="font-size: 5rem; right: -10px; bottom: -20px;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-body p-4 border-start border-info border-5">
+                <div class="small fw-bold text-muted text-uppercase mb-1">Ενεργες Ζητησεις</div>
+                <div class="h3 fw-bolder text-dark mb-0">{{ data.kpis.active }}</div>
+                <div class="small text-muted mt-1">Σε διαδικασία</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-body p-4 border-start border-warning border-5">
+                <div class="small fw-bold text-muted text-uppercase mb-1">Προς Εγκριση</div>
+                <div class="h3 fw-bolder text-dark mb-0">{{ data.kpis.pending }}</div>
+                <div class="small text-warning fw-semibold mt-1"><i class="bi bi-exclamation-circle me-1"></i>Απαιτούν ενέργεια</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-body p-4 border-start border-success border-5">
+                <div class="small fw-bold text-muted text-uppercase mb-1">Χρονος Παραδοσης</div>
+                <div class="h3 fw-bolder text-dark mb-0">{{ data.kpis.lead_time }} <span class="fs-6 fw-normal text-muted">ημέρες</span></div>
+                <div class="small text-muted mt-1">Κατά μέσο όρο</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white border-0 pt-4 px-4">
+                <h6 class="fw-bold mb-0 text-muted text-uppercase small"><i class="bi bi-graph-up text-primary me-2"></i>Ταση Εξοδων (Spend Trend)</h6>
+            </div>
+            <div class="card-body p-4">
+                <div style="height: 300px;"><canvas id="trendChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white border-0 pt-4 px-4">
+                <h6 class="fw-bold mb-0 text-muted text-uppercase small"><i class="bi bi-buildings text-primary me-2"></i>Κατανομη ανα Εργο</h6>
+            </div>
+            <div class="card-body p-4">
+                <div style="height: 280px;"><canvas id="ccChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white border-0 pt-4 px-4">
+                <h6 class="fw-bold mb-0 text-muted text-uppercase small"><i class="bi bi-award text-primary me-2"></i>Top 5 Προμηθευτες (Τζιρος)</h6>
+            </div>
+            <div class="card-body p-4">
+                <div style="height: 280px;"><canvas id="supChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script id="analytics-json" type="application/json">{{ data|tojson|safe }}</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const d = JSON.parse(document.getElementById('analytics-json').textContent);
+
+    // 1. Trend Chart (Line)
+    if (d.charts.trend.labels.length > 0) {
+        new Chart(document.getElementById('trendChart'), {
+            type: 'line',
+            data: {
+                labels: d.charts.trend.labels,
+                datasets: [{
+                    label: 'Κόστος (€)',
+                    data: d.charts.trend.values,
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointBackgroundColor: '#0d6efd',
+                    pointRadius: 4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+    }
+
+    // 2. Cost Center Chart (Doughnut)
+    if (d.charts.cc.labels.length > 0) {
+        new Chart(document.getElementById('ccChart'), {
+            type: 'doughnut',
+            data: {
+                labels: d.charts.cc.labels,
+                datasets: [{
+                    data: d.charts.cc.values,
+                    backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#0dcaf2', '#6c757d'],
+                    borderWidth: 0
+                }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: {size: 11} } } }
+            }
+        });
+    }
+
+    // 3. Top Suppliers Chart (Horizontal Bar)
+    if (d.charts.sups.labels.length > 0) {
+        new Chart(document.getElementById('supChart'), {
+            type: 'bar',
+            data: {
+                labels: d.charts.sups.labels,
+                datasets: [{
+                    label: 'Συνολικός Τζίρος (€)',
+                    data: d.charts.sups.values,
+                    backgroundColor: '#6610f2',
+                    borderRadius: 4
+                }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                indexAxis: 'y', // Οριζόντιες μπάρες
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

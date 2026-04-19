@@ -1,0 +1,748 @@
+{% extends "base.html" %}
+
+{% block title %}Υποβολή Προσφοράς{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5">
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-center mb-5">
+    <div>
+      <h1 class="h3 fw-bold text-dark mb-2">Υποβολή Προσφοράς</h1>
+      <p class="text-muted mb-0">Ζήτηση № {{ rfq.id }} - {{ rfq.title }}</p>
+    </div>
+    <a href="{{ url_for('supplier.dashboard') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-2"></i>Πίσω
+    </a>
+  </div>
+
+  {% if is_rfq_closed and my_awards %}
+  <!-- Awarded Items Summary Section -->
+  <div class="alert alert-success border-2 mb-4">
+    <div class="d-flex align-items-center">
+      <i class="bi bi-check-circle-fill me-3 fs-5"></i>
+      <div>
+        <strong>Ζήτηση Κλειστή - Ανατεθειμένα Είδη</strong>
+        <p class="mb-0 small text-muted">Η ζήτηση έχει κλείσει και τα παρακάτω είδη σας ανατέθηκαν.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Awarded Items Table -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-light border-0 py-3">
+      <h5 class="card-title fw-bold mb-0"><i class="bi bi-check2-all me-2 text-success"></i>Ανατεθειμένα Είδη & Κόστος</h5>
+    </div>
+    <div class="card-body p-4">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead class="table-light">
+            <tr style="height: 50px;">
+              <th class="text-start">Περιγραφή Είδους</th>
+              <th class="text-center" style="width: 80px;">Ποσότητα</th>
+              <th class="text-center" style="width: 100px;">Τιμή Μον.</th>
+              <th class="text-center" style="width: 100px;">Έκπτωση</th>
+              <th class="text-end" style="width: 110px;">Σύνολο</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for award in my_awards %}
+            <tr>
+              <td>
+                <div class="fw-semibold">
+                  {% if award.bid_line and award.bid_line.description %}
+                    {{ award.bid_line.description }}
+                  {% elif award.request_item and award.request_item.description %}
+                    {{ award.request_item.description }}
+                  {% else %}
+                    Άγνωστο Είδος
+                  {% endif %}
+                </div>
+              </td>
+              <td class="text-center">{{ "%.2f"|format(award.qty) }}</td>
+              <td class="text-center">{{ "%.2f"|format(award.unit_price) }} €</td>
+              <td class="text-center text-danger">
+                {% if award.bid_line_id and award.bid_line %}
+                  {% set bl = award.bid_line %}
+                  {% if bl.discount_pct > 0 %}
+                    -{{ "%.2f"|format(bl.discount_pct) }}%
+                  {% elif bl.discount_amount > 0 %}
+                    -{{ "%.2f"|format(bl.discount_amount) }} €
+                  {% else %}
+                    -
+                  {% endif %}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td class="text-end fw-bold">{{ "%.2f"|format(award.line_total) }} €</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Cost Summary -->
+      <div class="row justify-content-end mt-4">
+        <div class="col-md-5">
+          <table class="table table-sm table-borderless text-end">
+            <tr>
+              <td class="text-muted">Αρχικό Υποσύνολο (Είδη):</td>
+              <td class="fw-bold">{{ "%.2f"|format(my_awards_items_subtotal_before_discount) }} €</td>
+            </tr>
+            {% if my_awards_items_total_discount > 0 %}
+            <tr class="text-danger">
+              <td>Έκπτωση Ειδών:</td>
+              <td class="fw-bold">-{{ "%.2f"|format(my_awards_items_total_discount) }} €</td>
+            </tr>
+            {% endif %}
+            {% if my_awards_overall_discount > 0 %}
+            <tr class="text-danger">
+              <td>Συνολική Έκπτωση:</td>
+              <td class="fw-bold">-{{ "%.2f"|format(my_awards_overall_discount) }} €</td>
+            </tr>
+            {% endif %}
+            {% if total_discount_sum > 0 %}
+            <tr class="text-danger border-top pt-2">
+              <td class="fw-semibold">Σύνολο Εκπτώσεων:</td>
+              <td class="fw-bold">-{{ "%.2f"|format(total_discount_sum) }} €</td>
+            </tr>
+            {% endif %}
+            {% if my_awards_combo_total > 0 %}
+            <tr class="text-info">
+              <td>Μεταφορικά:</td>
+              <td class="fw-bold">+{{ "%.2f"|format(my_awards_combo_total) }} €</td>
+            </tr>
+            {% endif %}
+            <tr class="border-top border-2">
+              <td class="fs-5 text-uppercase fw-bold pt-2">Τελικό Καθαρό Ποσό:</td>
+              <td class="fs-4 text-success fw-bold pt-2">{{ "%.2f"|format(final_award_total) }} €</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+    <!-- Receipt Status Summary Badges -->
+    {% if is_rfq_closed and my_awards and is_rfq_received %}
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="p-3 border rounded bg-success-subtle text-center h-100">
+          <i class="bi bi-check-circle text-success fs-3 d-block mb-2"></i>
+          <div class="text-muted small text-uppercase fw-semibold">Πλήρως Παραληφθέντα</div>
+          <div class="fs-5 fw-bold text-success">{{ receipt_summary.fully_received }}/{{ receipt_summary.total_items }}</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 border rounded bg-warning-subtle text-center h-100">
+          <i class="bi bi-hourglass-split text-warning fs-3 d-block mb-2"></i>
+          <div class="text-muted small text-uppercase fw-semibold">Μερικώς Παραληφθέντα</div>
+          <div class="fs-5 fw-bold text-warning">{{ receipt_summary.partially_received }}/{{ receipt_summary.total_items }}</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 border rounded bg-danger-subtle text-center h-100">
+          <i class="bi bi-x-circle text-danger fs-3 d-block mb-2"></i>
+          <div class="text-muted small text-uppercase fw-semibold">Εκκρεμή Παραλαβή</div>
+          <div class="fs-5 fw-bold text-danger">{{ receipt_summary.not_received }}/{{ receipt_summary.total_items }}</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 border rounded bg-light text-center h-100">
+          <i class="bi bi-arrow-left-right text-primary fs-3 d-block mb-2"></i>
+          <div class="text-muted small text-uppercase fw-semibold">Σύνολο</div>
+          <div class="fs-6 fw-bold">{{ "%.2f"|format(receipt_summary.total_received) }} / {{ "%.2f"|format(receipt_summary.total_ordered) }}</div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Purchase Order Items Table -->
+    {% if is_rfq_closed and my_awards %}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-primary text-white py-3">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-box-seam me-2"></i>Κατάσταση Παραλαβής Ειδών</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="text-start ps-4 py-3">Είδος</th>
+                <th class="text-center py-3" style="width: 100px;">Παραγγελέία</th>
+                <th class="text-center py-3" style="width: 100px;">Ληφθέντα</th>
+                <th class="text-center py-3" style="width: 100px;">Υπόλοιπο</th>
+                <th class="text-center py-3" style="width: 120px;">Κατάσταση</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for aw in my_awards %}
+              {% if aw.request_item_id %}
+              {% set req_item_data = request_items_map.get(aw.request_item_id, {}) %}
+              {% set total_received = award_received_qty.get(aw.id, 0) %}
+              {% set remaining = aw.qty - total_received %}
+              {% if total_received >= aw.qty %}
+                {% set status_badge = "bg-success" %}
+                {% set status_text = "Πλήρης" %}
+                {% set status_icon = "bi-check-circle" %}
+              {% elif total_received > 0 %}
+                {% set status_badge = "bg-warning text-dark" %}
+                {% set status_text = "Μερική" %}
+                {% set status_icon = "bi-hourglass-split" %}
+              {% else %}
+                {% set status_badge = "bg-danger" %}
+                {% set status_text = "Εκκρεμής" %}
+                {% set status_icon = "bi-x-circle" %}
+              {% endif %}
+              <tr>
+                <td class="text-start ps-4 fw-semibold">{{ req_item_data.get('description', 'Άγνωστο Είδος') }}</td>
+                <td class="text-center"><span class="fw-bold">{{ "%.2f"|format(aw.qty) }}</span></td>
+                <td class="text-center"><span class="fw-bold text-success">{{ "%.2f"|format(total_received) }}</span></td>
+                <td class="text-center">
+                  {% if remaining > 0 %}
+                    <span class="fw-bold text-danger">{{ "%.2f"|format(remaining) }}</span>
+                  {% else %}
+                    <span class="fw-bold text-success">0.00</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  <span class="badge {{ status_badge }}">
+                    <i class="bi {{ status_icon }} me-1"></i>{{ status_text }}
+                  </span>
+                </td>
+              </tr>
+              {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  <!-- Main Bid Form -->
+  {% if not is_rfq_closed or not my_awards %}
+  <div class="d-flex gap-4" style="flex-wrap: nowrap;">
+    <!-- Left Column: Form -->
+    <div style="flex: 0 0 65%">
+      <form method="POST" enctype="multipart/form-data" id="bid-form" onsubmit="prepareFormData(event)">
+        <!-- RFQ Info Card -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-light border-0 py-3">
+            <h5 class="card-title fw-bold mb-0"><i class="bi bi-info-circle me-2 text-primary"></i>Στοιχεία Ζήτησης</h5>
+          </div>
+          <div class="card-body p-4">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <p class="text-muted small mb-1">Τίτλος Ζήτησης</p>
+                <p class="fw-bold">{{ rfq.title }}</p>
+              </div>
+              <div class="col-md-6">
+                <p class="text-muted small mb-1">Κατάσταση</p>
+                <p>
+                  {% if rfq.status == 'OPEN' %}
+                    <span class="badge bg-success rounded-pill px-3 py-2"><i class="bi bi-check-circle me-1"></i>Ανοιχτή</span>
+                  {% else %}
+                    <span class="badge bg-secondary rounded-pill px-3 py-2">{{ rfq.status }}</span>
+                  {% endif %}
+                </p>
+              </div>
+              <div class="col-md-6">
+                <p class="text-muted small mb-1"><i class="bi bi-calendar-check me-1"></i>Προθεσμία Υποβολής</p>
+                <p class="fw-bold">
+                  {% if rfq.submit_deadline %}
+                    {{ rfq.submit_deadline.strftime('%d/%m/%Y %H:%M') }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </p>
+              </div>
+              <div class="col-md-6">
+                <p class="text-muted small mb-1"><i class="bi bi-truck me-1"></i>Τόπος Παράδοσης</p>
+                <p class="fw-bold">{{ rfq.delivery_location or '-' }}</p>
+              </div>
+              <div class="col-md-6">
+                <p class="text-muted small mb-1"><i class="bi bi-calendar me-1"></i>Ημερομηνία Παράδοσης</p>
+                <p class="fw-bold">
+                  {% if rfq.delivery_deadline %}
+                    {{ rfq.delivery_deadline.strftime('%d/%m/%Y') }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pricing Card -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-light border-0 py-3">
+            <h5 class="card-title fw-bold mb-0"><i class="bi bi-calculator me-2 text-success"></i>Τιμολόγηση Ειδών</h5>
+          </div>
+          <div class="card-body p-4">
+            <div class="table-responsive">
+              <table class="table align-middle" style="margin-bottom: 0;">
+                <thead class="table-light">
+                  <tr style="height: 55px; vertical-align: middle;">
+                    <th class="text-start align-middle" style="padding: 12px 20px;">Περιγραφή Είδους</th>
+                    <th class="text-center align-middle" style="width: 100px; padding: 12px 16px;">Ποσότητα</th>
+                    <th class="text-center align-middle" style="width: 140px; padding: 12px 16px;">Τιμή Μον.</th>
+                    <th class="text-center align-middle" style="width: 140px; padding: 12px 16px;">Υπολογ.</th>
+                    <th class="text-center align-middle" style="width: 160px; padding: 12px 16px;">Έκπτωση</th>
+                    <th class="text-end align-middle" style="width: 130px; padding: 12px 20px;">Σύνολο</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% if rfq.items %}
+                    {% for item in rfq.items %}
+                    <tr data-item-id="{{ item.id }}" data-qty="{{ item.quantity }}" style="height: 65px; border-bottom: 1px solid #e0e0e0;">
+                      <td style="vertical-align: middle; padding: 12px 20px; font-size: 0.95em; border-right: 1px solid #e0e0e0;">
+                        <span class="fw-semibold">{{ item.description }}</span>
+                      </td>
+                      <td class="text-center fw-bold" style="vertical-align: middle; padding: 12px 16px; font-size: 1em; border-right: 1px solid #e0e0e0;">{{ "%.2f"|format(item.quantity) }}</td>
+                      <td style="vertical-align: middle; padding: 10px 8px; border-right: 1px solid #e0e0e0;">
+                        <div class="input-group justify-content-center" style="align-items: center; height: 100%;">
+                          <input type="number" step="0.01" min="0" class="form-control text-center item-price" 
+                                 name="item_price_{{ item.id }}" placeholder="0.00" 
+                                 data-item-id="{{ item.id }}"
+                                 oninput="updatePricing()"
+                                 style="height: 100%; font-size: 1.05em; font-weight: 500; border: 1px solid #ccc; padding: 8px 6px;">
+                          <span class="input-group-text" style="height: 100%; padding: 0 10px; font-size: 0.9em; background-color: #ffffff; border: 1px solid #ccc; border-left: none; font-weight: 600;">€</span>
+                        </div>
+                      </td>
+                      <td class="text-center fw-bold" style="vertical-align: middle; padding: 12px 8px; font-size: 1.02em; border-right: 1px solid #e0e0e0;">
+                        <span class="item-subtotal" data-item="{{ item.id }}" style="font-size: 1.05em; font-weight: 600; color: #333333;">€ 0.00</span>
+                      </td>
+                      <td style="vertical-align: middle; padding: 10px 8px; border-right: 1px solid #e0e0e0;">
+                        <div class="input-group justify-content-center" style="display: flex; align-items: center; gap: 0; height: 100%;">
+                          <input type="number" step="0.01" min="0" class="form-control text-center item-discount" 
+                                 name="item_discount_{{ item.id }}" placeholder="0"
+                                 data-item-id="{{ item.id }}"
+                                 oninput="updatePricing()"
+                                 style="width: 80px; height: 100%; font-size: 1.05em; font-weight: 500; border: 1px solid #ccc; border-right: none; padding: 8px 6px;">
+                          <select class="form-select item-discount-type" 
+                                  name="item_discount_type_{{ item.id }}"
+                                  data-item-id="{{ item.id }}"
+                                  onchange="updatePricing()"
+                                  style="width: 55px; height: 100%; font-size: 0.95em; font-weight: 500; padding: 8px 6px; border: 1px solid #ccc; border-left: none; background-color: #ffffff;">
+                            <option value="pct" selected>%</option>
+                            <option value="amt">€</option>
+                          </select>
+                        </div>
+                      </td>
+                      <td class="text-end fw-bold" style="vertical-align: middle; padding: 12px 20px; font-size: 1.05em; border-left: 1px solid #e0e0e0;">
+                        <span class="item-total" data-item="{{ item.id }}" style="font-size: 1.08em; font-weight: 700; color: #333333;">€ 0.00</span>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                    <!-- Totals Row -->
+                    <tr class="fw-bold" style="background: linear-gradient(to right, #f0f4f8, #e8eef5); border-top: 3px solid #0d6efd; border-bottom: 2px solid #0d6efd;">
+                      <td class="text-start text-primary" style="padding: 14px 12px; font-size: 1.05em; letter-spacing: 0.5px;">
+                        <i class="bi bi-calculator-fill me-2"></i>ΣΥΝΟΛΑ
+                      </td>
+                      <td class="text-center text-dark" style="padding: 14px 8px; font-size: 1.02em;">
+                        <span id="total-qty" style="font-weight: 600;">0.00</span>
+                      </td>
+                      <td class="text-center" style="padding: 14px 8px;">
+                        -
+                      </td>
+                      <td class="text-center text-dark" style="padding: 14px 8px; font-size: 1.02em;">
+                        <span id="total-before-discount" style="font-weight: 600;">€ 0.00</span>
+                      </td>
+                      <td class="text-center" style="padding: 14px 8px; font-size: 1.02em;">
+                        <span id="total-discount-amount" style="font-weight: 600; color: #dc3545;">-€ 0.00</span>
+                      </td>
+                      <td class="text-end" style="padding: 14px 12px; font-size: 1.05em; background-color: rgba(13, 110, 253, 0.08); border-radius: 0 4px 4px 0;">
+                        <span id="total-after-discount" style="font-weight: 700; color: #0d6efd;">€ 0.00</span>
+                      </td>
+                    </tr>
+                  {% else %}
+                    <tr>
+                      <td colspan="6" class="text-center text-muted py-4">Δεν υπάρχουν είδη στη ζήτηση</td>
+                    </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Discounts & Shipping Card -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-light border-0 py-3">
+            <h5 class="card-title fw-bold mb-0"><i class="bi bi-tag me-2 text-warning"></i>Έκπτωση & Δαπάνες</h5>
+          </div>
+          <div class="card-body p-4">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Συνολική Έκπτωση</label>
+                <div class="input-group">
+                  <input type="number" step="0.01" min="0" class="form-control" id="discount_value"
+                         name="overall_discount_val" placeholder="0" value="{{ bid.overall_discount_pct or '' }}" oninput="updatePricing()">
+                  <select class="form-select" id="discount_type" name="overall_discount_type" 
+                          style="max-width: 80px;" onchange="updatePricing()">
+                    <option value="pct" {{ 'selected' if not bid.overall_discount_type or bid.overall_discount_type == 'pct' }}>%</option>
+                    <option value="amt" {{ 'selected' if bid.overall_discount_type == 'amt' }}>€</option>
+                  </select>
+                </div>
+                <small class="text-muted">Εφαρμόζεται στο σύνολο</small>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold"><i class="bi bi-truck me-1"></i>Μεταφορικά (€)</label>
+                <input type="number" step="0.01" min="0" class="form-control" 
+                       name="shipping_cost" placeholder="0.00" oninput="updatePricing()">
+                <small class="text-muted">Δαπάνες αποστολής</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Documents Card -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-light border-0 py-3">
+            <h5 class="card-title fw-bold mb-0"><i class="bi bi-file-earmark me-2 text-info"></i>Έγγραφα & Σχόλια</h5>
+          </div>
+          <div class="card-body p-4">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label fw-semibold">Τεχνική Προσφορά / Φυλλάδιο (Προαιρετικό)</label>
+                <input type="file" class="form-control" name="document" 
+                       accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.png,.jpg,.jpeg">
+                <small class="text-muted d-block mt-2">
+                  PDF, Word, Excel, εικόνες ή ZIP. Μέγιστο: 10MB
+                </small>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold"><i class="bi bi-calendar me-1"></i>Προτεινόμενη Ημερομηνία Παράδοσης</label>
+                <input type="date" class="form-control" name="proposed_delivery_date">
+                <small class="text-muted">Πότε μπορείτε να δώσετε τα είδη</small>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold"><i class="bi bi-clock me-1"></i>Ημέρες Παράδοσης</label>
+                <input type="number" min="1" class="form-control" name="delivery_days" value="7" placeholder="7">
+                <small class="text-muted">Εργάσιμες ημέρες</small>
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold">Σχόλια & Παρατηρήσεις</label>
+                <textarea class="form-control" name="notes" rows="3" 
+                          placeholder="Γράψτε τυχόν ειδικές συνθήκες ή παρατηρήσεις..."></textarea>
+                <small class="text-muted">Μέγιστο 500 χαρακτήρες</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="d-flex gap-2 mb-5">
+          <a href="{{ url_for('supplier.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle me-1"></i>Ακύρωση
+          </a>
+          <button type="submit" name="action" value="save_draft" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-clockwise me-1"></i>Αποθήκευση Προσχεδίου
+          </button>
+          <button type="submit" name="action" value="submit" class="btn btn-success">
+            <i class="bi bi-send-check me-1"></i>Υποβολή Προσφοράς
+          </button>
+        </div>
+      </form>
+      
+      <!-- Hidden container for bid items data -->
+      <div id="bid-items-container" style="display: none;"></div>
+    </div>
+
+    <!-- Right Column: Summary -->
+    <div style="flex: 1 1 auto; min-width: 0">
+      <div class="card border-0 shadow-sm sticky-top" style="top: 20px; z-index: 10;">
+        <div class="card-header bg-light border-0 py-3">
+          <h5 class="card-title fw-bold mb-0"><i class="bi bi-receipt me-2 text-primary"></i>Σύνοψη Τιμών</h5>
+        </div>
+        <div class="card-body p-4">
+          <div class="summary-item mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="text-muted">Σύνολο Ειδών:</span>
+              <span class="fw-bold" id="subtotal">€ 0.00</span>
+            </div>
+          </div>
+
+          <div class="summary-item mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="text-muted" style="font-size: 0.9rem;">Έκπτ. γραμμών:</span>
+              <span class="fw-bold text-danger" id="item_discount">-€ 0.00</span>
+            </div>
+          </div>
+
+          <div class="summary-item mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="text-muted" style="font-size: 0.9rem;">Συνολική έκπτ.:</span>
+              <span class="fw-bold text-danger" id="overall_discount">-€ 0.00</span>
+            </div>
+          </div>
+
+          <div class="summary-item mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="text-muted">Μεταφορικά:</span>
+              <span class="fw-bold" id="shipping">+€ 0.00</span>
+            </div>
+          </div>
+
+          <hr class="my-3">
+
+          <div class="summary-item mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="fw-bold fs-5">Τελικό Σύνολο:</span>
+              <span class="fw-bold fs-4 text-success" id="total">€ 0.00</span>
+            </div>
+          </div>
+
+          <div class="alert alert-info border-0 small mt-4 mb-0">
+            <i class="bi bi-lightbulb me-2"></i>
+            <strong>Συμβουλή:</strong> Προσφέρετε ανταγωνιστικές τιμές με στρατηγικές εκπτώσεις.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+<script>
+// Prepare form data before submission
+function prepareFormData(e) {
+  const container = document.getElementById('bid-items-container');
+  container.innerHTML = ''; // Clear previous data
+  
+  // Collect delivery days and overall discount/shipping
+  const deliveryDays = document.querySelector('input[name="delivery_days"]')?.value || '7';
+  const overallDiscount = document.querySelector('input[name="discount_value"]')?.value || '0';
+  const overallDiscountType = document.querySelector('select[name="discount_type"]')?.value || 'pct';
+  const shipping = document.querySelector('input[name="shipping_cost"]')?.value || '0';
+  const proposedDate = document.querySelector('input[name="proposed_delivery_date"]')?.value || '';
+  
+  // Add overall fields
+  container.innerHTML += `<input type="hidden" name="discount_value" value="${overallDiscount}">`;
+  container.innerHTML += `<input type="hidden" name="discount_type" value="${overallDiscountType}">`;
+  container.innerHTML += `<input type="hidden" name="shipping_cost" value="${shipping}">`;
+  container.innerHTML += `<input type="hidden" name="proposed_delivery_date" value="${proposedDate}">`;
+  
+  // Collect item data from table
+  document.querySelectorAll('table tbody tr[data-item-id]').forEach(row => {
+    const itemId = row.getAttribute('data-item-id');
+    const qty = parseFloat(row.getAttribute('data-qty')) || 0;
+    const priceInput = row.querySelector('input.item-price');
+    const discountInput = row.querySelector('input.item-discount');
+    const discountTypeSelect = row.querySelector('select.item-discount-type');
+    
+    const price = parseFloat(priceInput?.value) || 0;
+    const discount = parseFloat(discountInput?.value) || 0;
+    const discountType = discountTypeSelect?.value || 'pct';
+    
+    // Add hidden inputs to form
+    container.innerHTML += `<input type="hidden" name="item_id[]" value="${itemId}">`;
+    container.innerHTML += `<input type="hidden" name="qty[]" value="${qty}">`;
+    container.innerHTML += `<input type="hidden" name="price[]" value="${price}">`;
+    container.innerHTML += `<input type="hidden" name="discount[]" value="${discount}">`;
+    container.innerHTML += `<input type="hidden" name="discount_type[]" value="${discountType}">`;
+    container.innerHTML += `<input type="hidden" name="delivery_days[]" value="${deliveryDays}">`;
+  });
+  
+  // Move hidden fields into form
+  const form = document.getElementById('bid-form');
+  Array.from(container.children).forEach(child => {
+    form.appendChild(child);
+  });
+}
+
+// Prefill existing bid data on page load
+document.addEventListener('DOMContentLoaded', function() {
+  // Prefill item prices and discounts
+  const itemPrefill = {{ item_prefill | tojson }};
+  for (const [itemId, data] of Object.entries(itemPrefill)) {
+    const priceInput = document.querySelector(`input.item-price[data-item-id="${itemId}"]`);
+    if (priceInput && data.price) {
+      priceInput.value = parseFloat(data.price).toFixed(2);
+    }
+    
+    // Prefill item discount
+    const discountInput = document.querySelector(`input.item-discount[data-item-id="${itemId}"]`);
+    if (discountInput && data.disc) {
+      discountInput.value = parseFloat(data.disc).toFixed(2);
+    }
+    
+    // Prefill item discount type
+    const discountTypeSelect = document.querySelector(`select.item-discount-type[data-item-id="${itemId}"]`);
+    if (discountTypeSelect && data.disc_type) {
+      discountTypeSelect.value = data.disc_type;
+    }
+  }
+  
+  // Prefill discount
+  {% if bid %}
+    const discountElem = document.getElementById('discount_value');
+    const discountTypeElem = document.getElementById('discount_type');
+    if (discountElem && '{{ bid.overall_discount_pct }}') {
+      discountElem.value = parseFloat('{{ bid.overall_discount_pct }}').toFixed(2);
+      if (discountTypeElem) discountTypeElem.value = '{{ bid.overall_discount_type or "pct" }}';
+    }
+    
+    const shippingElem = document.querySelector('input[name="shipping_cost"]');
+    if (shippingElem && '{{ bid.shipping_cost }}') {
+      shippingElem.value = parseFloat('{{ bid.shipping_cost }}').toFixed(2);
+    }
+    
+    // Prefill proposed delivery date
+    const dateElem = document.querySelector('input[name="proposed_delivery_date"]');
+    if (dateElem && '{{ bid.proposed_delivery_date }}') {
+      const dateStr = '{{ bid.proposed_delivery_date.strftime("%Y-%m-%d") if bid.proposed_delivery_date else "" }}';
+      if (dateStr) {
+        dateElem.value = dateStr;
+      }
+    }
+  {% endif %}
+  
+  updatePricing();
+});
+
+function updatePricing() {
+  let subtotal = 0;
+  let totalItemDiscount = 0;
+  let totalQty = 0;
+
+  // Calculate subtotal and per-item discounts
+  document.querySelectorAll('input.item-price').forEach(input => {
+    const row = input.closest('tr');
+    const itemId = input.getAttribute('data-item-id');
+    const qty = parseFloat(row.getAttribute('data-qty')) || 0;
+    const price = parseFloat(input.value) || 0;
+    
+    // Get per-item discount
+    const discountInput = document.querySelector(`input.item-discount[data-item-id="${itemId}"]`);
+    const discountTypeSelect = document.querySelector(`select.item-discount-type[data-item-id="${itemId}"]`);
+    const discountVal = parseFloat(discountInput?.value) || 0;
+    const discountType = discountTypeSelect?.value || 'pct';
+    
+    // Calculate item subtotal before discount
+    const itemSubtotal = qty * price;
+    
+    // Calculate item discount amount
+    let itemDiscountAmt = 0;
+    if (discountType === 'pct') {
+      itemDiscountAmt = itemSubtotal * (discountVal / 100);
+    } else {
+      itemDiscountAmt = discountVal;
+    }
+    
+    // Add to totals
+    subtotal += itemSubtotal;
+    totalItemDiscount += itemDiscountAmt;
+    totalQty += qty;
+    
+    // Update item subtotal before discount display
+    const subtotalSpan = row.querySelector('.item-subtotal');
+    if (subtotalSpan) {
+      subtotalSpan.textContent = '€ ' + itemSubtotal.toFixed(2);
+    }
+    
+    // Update item total display (after discount)
+    const itemTotal = itemSubtotal - itemDiscountAmt;
+    const totalSpan = row.querySelector('.item-total');
+    if (totalSpan) {
+      totalSpan.textContent = '€ ' + itemTotal.toFixed(2);
+    }
+  });
+
+  // Update totals row
+  const totalQtyElem = document.getElementById('total-qty');
+  if (totalQtyElem) {
+    totalQtyElem.textContent = totalQty.toFixed(2);
+  }
+  
+  const totalBeforeDiscElem = document.getElementById('total-before-discount');
+  if (totalBeforeDiscElem) {
+    totalBeforeDiscElem.textContent = '€ ' + subtotal.toFixed(2);
+  }
+  
+  const totalDiscountElem = document.getElementById('total-discount-amount');
+  if (totalDiscountElem) {
+    totalDiscountElem.textContent = '-€ ' + totalItemDiscount.toFixed(2);
+  }
+  
+  const totalAfterDiscElem = document.getElementById('total-after-discount');
+  if (totalAfterDiscElem) {
+    const totalAfterDisc = subtotal - totalItemDiscount;
+    totalAfterDiscElem.textContent = '€ ' + totalAfterDisc.toFixed(2);
+  }
+
+  // Get overall discount values
+  const overallDiscountVal = parseFloat(document.querySelector('input[name="overall_discount_val"]')?.value) || 0;
+  const overallDiscountType = document.querySelector('select[name="overall_discount_type"]')?.value || 'pct';
+  const shipping = parseFloat(document.querySelector('input[name="shipping_cost"]')?.value) || 0;
+
+  // Calculate overall discount amount (applied AFTER line discounts)
+  let overallDiscountAmt = 0;
+  const subtotalAfterLineDiscounts = subtotal - totalItemDiscount;
+  if (overallDiscountType === 'pct') {
+    overallDiscountAmt = subtotalAfterLineDiscounts * (overallDiscountVal / 100);
+  } else {
+    overallDiscountAmt = overallDiscountVal;
+  }
+
+  // Calculate final total
+  const total = Math.max(0, subtotalAfterLineDiscounts - overallDiscountAmt + shipping);
+
+  // Update display - now showing line discounts and overall discounts separately (if elements exist)
+  const subtotalElem = document.getElementById('subtotal');
+  if (subtotalElem) subtotalElem.textContent = '€ ' + subtotal.toFixed(2);
+  
+  const itemDiscountElem = document.getElementById('item_discount');
+  if (itemDiscountElem) itemDiscountElem.textContent = '-€ ' + totalItemDiscount.toFixed(2);
+  
+  const overallDiscountElem = document.getElementById('overall_discount');
+  if (overallDiscountElem) overallDiscountElem.textContent = '-€ ' + overallDiscountAmt.toFixed(2);
+  
+  const shippingElem = document.getElementById('shipping');
+  if (shippingElem) shippingElem.textContent = '+€ ' + shipping.toFixed(2);
+  
+  const totalElem = document.getElementById('total');
+  if (totalElem) totalElem.textContent = '€ ' + total.toFixed(2);
+}
+
+// Recalculate on page load
+document.addEventListener('DOMContentLoaded', updatePricing);
+</script>
+
+<style>
+.summary-item {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e9ecef;
+}
+.summary-item:last-child {
+  border-bottom: none;
+}
+
+/* Timeline styles for receipt history */
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.timeline {
+  position: relative;
+  padding-left: 0;
+}
+
+.timeline .timeline-dot {
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 3px currentColor;
+}
+
+/* Status badge colors */
+.bg-success { --bs-bg-opacity: 1; background-color: rgba(25, 135, 84, var(--bs-bg-opacity)); }
+.bg-warning { --bs-bg-opacity: 1; background-color: rgba(255, 193, 7, var(--bs-bg-opacity)); }
+.text-success { --bs-text-opacity: 1; color: rgba(25, 135, 84, var(--bs-text-opacity)); }
+.text-warning { --bs-text-opacity: 1; color: rgba(255, 193, 7, var(--bs-text-opacity)); }
+</style>
+
+{% endblock %}

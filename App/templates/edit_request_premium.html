@@ -1,0 +1,492 @@
+{% extends "base_premium.html" %}
+
+{% block content %}
+<div class="container-xl py-5">
+    <!-- Header Section -->
+    <div class="mb-5 animation-slideUp">
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="icon-box bg-info-light p-3 rounded-lg">
+                <i class="bi bi-pencil-square text-info fs-4"></i>
+            </div>
+            <div>
+                <h1 class="h2 mb-1 text-dark fw-bold">Επεξεργασία Ζήτησης</h1>
+                <p class="text-muted mb-0">
+                    Τροποποιήστε τα στοιχεία της ζήτησης <strong>#{{ rfq.id }}: {{ rfq.title }}</strong>
+                </p>
+            </div>
+        </div>
+
+        <!-- Status Badge -->
+        <div class="d-flex gap-2 align-items-center">
+            <span class="badge badge-lg bg-info">
+                <i class="bi bi-info-circle me-1"></i> Κατάσταση: 
+                <strong>
+                    {% if rfq.status == 'draft' %}Προσχέδιο
+                    {% elif rfq.status == 'open' %}Ανοιχτή
+                    {% elif rfq.status == 'closed' %}Κλειστή
+                    {% elif rfq.status == 'awarded' %}Ανατεθειμένη
+                    {% endif %}
+                </strong>
+            </span>
+            <span class="text-muted small">Δημιουργία: {{ rfq.created_at.strftime('%d/%m/%Y') if rfq.created_at else '-' }}</span>
+        </div>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card border-0 shadow-lg animation-slideUp" style="animation-delay: 100ms;">
+        <form method="post" enctype="multipart/form-data">
+            
+            <!-- Section 1: Basic Information -->
+            <div class="card-header bg-gradient-primary px-4 py-4">
+                <h5 class="mb-0 text-white fw-bold">
+                    <i class="bi bi-info-circle me-2"></i>Βασικές Πληροφορίες
+                </h5>
+            </div>
+
+            <div class="card-body p-4">
+                <div class="row g-4">
+                    <!-- Title Field -->
+                    <div class="col-12">
+                        <div class="form-floating form-group-premium">
+                            <input type="text" name="title" class="form-control form-control-lg" 
+                                   id="titleInput" required placeholder="Τίτλος ζήτησης"
+                                   value="{{ rfq.title }}">
+                            <label for="titleInput">
+                                <i class="bi bi-pencil me-2"></i>Τίτλος Ζήτησης <span class="text-danger">*</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Items -->
+            <div class="card-header bg-gradient-success px-4 py-3 border-top">
+                <h5 class="mb-0 text-white fw-bold">
+                    <i class="bi bi-boxes me-2"></i>Είδη προς Προμήθεια
+                </h5>
+            </div>
+
+            <div class="card-body p-4">
+                {% if rfq.status != 'draft' %}
+                <div class="alert alert-warning border-0 bg-warning-light text-warning mb-4" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <small><strong>Σημείωση:</strong> Η ζήτηση έχει αποστολεί. Τυχόν αλλαγές στα είδη θα ενημερώσουν τους προμηθευτές.</small>
+                </div>
+                {% endif %}
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="itemsTableEdit">
+                        <thead>
+                            <tr class="border-bottom border-2 border-secondary-light">
+                                <th class="text-muted fw-bold" style="width: 45%;">
+                                    <i class="bi bi-list me-2"></i>Περιγραφή
+                                </th>
+                                <th class="text-muted fw-bold text-center" style="width: 20%;">
+                                    <i class="bi bi-rulers me-2"></i>Μονάδα
+                                </th>
+                                <th class="text-muted fw-bold text-center" style="width: 20%;">
+                                    <i class="bi bi-speedometer2 me-2"></i>Ποσότητα
+                                </th>
+                                <th class="text-muted fw-bold text-center" style="width: 15%;">
+                                    <i class="bi bi-trash me-2"></i>Ενέργεια
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in rfq.items %}
+                            <tr class="item-row animation-slideUp">
+                                <td>
+                                    <input type="text" name="item_desc[]" class="form-control form-control-sm border-0 fw-500" 
+                                           placeholder="Περιγραφή είδους" value="{{ item.description }}" required>
+                                </td>
+                                <td>
+                                    <select name="item_unit[]" class="form-select form-select-sm border-0" required>
+                                        <option value="">--</option>
+                                        {% set units = ['τμχ','m','kg','tn','σετ','κουτί','λίτρα','m2','m3','παλέτα'] %}
+                                        {% for u in units %}
+                                        <option value="{{ u }}" {% if item.unit == u %}selected{% endif %}>{{ u }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="number" step="0.01" min="0.01" name="item_qty[]" 
+                                           class="form-control form-control-sm border-0 text-center" 
+                                           value="{{ '%.2f'|format(item.quantity) }}" required>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-outline-danger border-0 px-2" 
+                                            onclick="this.closest('.item-row').remove()" title="Διαγραφή">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex gap-2 mt-4">
+                    <button type="button" class="btn btn-outline-success" onclick="addRowEdit()">
+                        <i class="bi bi-plus-circle me-2"></i>Προσθήκη Έτερου Είδους
+                    </button>
+                </div>
+            </div>
+
+            <!-- Section 3: Details & File -->
+            <div class="card-header bg-gradient-warning px-4 py-3 border-top">
+                <h5 class="mb-0 text-white fw-bold">
+                    <i class="bi bi-file-earmark-text me-2"></i>Λεπτομέρειες & Συνημμένα
+                </h5>
+            </div>
+
+            <div class="card-body p-4">
+                <div class="row g-4">
+                    <!-- Details Textarea -->
+                    <div class="col-12">
+                        <div class="form-group-premium">
+                            <label for="detailsTextarea" class="form-label fw-bold mb-2">
+                                <i class="bi bi-justify me-2"></i>Γενικές Λεπτομέρειες (Προαιρετικά)
+                            </label>
+                            <textarea name="details" id="detailsTextarea" class="form-control form-control-lg" 
+                                      rows="4" placeholder="Προσθέστε επιπλέον πληροφορίες...">{{ rfq.description or '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <!-- File Upload -->
+                    <div class="col-12">
+                        <div class="form-group-premium">
+                            <label class="form-label fw-bold mb-2">
+                                <i class="bi bi-paperclip me-2"></i>Συνημμένο Αρχείο / Προδιαγραφές
+                            </label>
+
+                            {% if rfq.documents %}
+                            <div class="card border-0 bg-light mb-3 p-3">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <i class="bi bi-file-earmark-pdf fs-2 text-danger"></i>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold">{{ rfq.documents }}</h6>
+                                            <small class="text-muted">Τρέχον αρχείο</small>
+                                        </div>
+                                    </div>
+                                    <a href="{{ url_for('main.download_file', filename=rfq.documents) }}" 
+                                       target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-download me-1"></i>Λήψη
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <div class="upload-area border-2 border-dashed rounded-lg p-4 text-center bg-light cursor-pointer" 
+                                 id="uploadAreaEdit" onclick="document.getElementById('documentUploadEdit').click()">
+                                <i class="bi bi-cloud-arrow-up fs-2 text-primary mb-2 d-block"></i>
+                                <h6 class="mb-1 fw-bold text-dark">Σύρετε ή κάντε κλικ για ανέβασμα</h6>
+                                <small class="text-muted">PDF, Word, Excel, ZIP (έως 20MB)</small>
+                            </div>
+                            <input type="file" class="form-control d-none" name="document" id="documentUploadEdit" 
+                                   accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.png,.jpg,.jpeg">
+                            <small class="form-text text-muted d-block mt-2">
+                                <i class="bi bi-info-circle me-1"></i>Αφήστε κενό για να διατηρήσετε το τρέχον αρχείο
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 4: Suppliers -->
+            <div class="card-header bg-gradient-cyan px-4 py-3 border-top">
+                <h5 class="mb-0 text-white fw-bold">
+                    <i class="bi bi-shop me-2"></i>Αποστολή σε Προμηθευτές
+                </h5>
+            </div>
+
+            <div class="card-body p-4">
+                <div class="row g-4">
+                    <div class="col-12">
+                        <div class="d-flex gap-2 mb-3">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                    onclick="selectAllSuppliers(true)">
+                                <i class="bi bi-check-all me-1"></i>Επιλογή όλων
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                    onclick="selectAllSuppliers(false)">
+                                <i class="bi bi-x-circle me-1"></i>Καθαρισμός
+                            </button>
+                        </div>
+
+                        {% set selected = rfq.allowed_suppliers | map(attribute='supplier_username') | list %}
+                        <select name="suppliers[]" id="suppliersSelectEdit" class="form-select form-select-lg select2" 
+                                multiple required>
+                            {% for uname, dname in suppliers %}
+                            <option value="{{ uname }}" {% if uname in selected %}selected{% endif %}>{{ dname }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <small class="form-text text-muted d-block mt-2">
+                            <i class="bi bi-info-circle me-1"></i>Oι αλλαγές θα ενημερώσουν τους προμηθευτές
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 5: Deadlines & Delivery -->
+            <div class="card-header bg-gradient-info px-4 py-3 border-top">
+                <h5 class="mb-0 text-white fw-bold">
+                    <i class="bi bi-calendar-check me-2"></i>Προθεσμίες & Παράδοση
+                </h5>
+            </div>
+
+            <div class="card-body p-4">
+                <div class="row g-4">
+                    <!-- Delivery Location -->
+                    <div class="col-lg-6">
+                        <div class="form-floating form-group-premium">
+                            <input type="text" name="delivery_location" id="deliveryLocationEdit" 
+                                   class="form-control form-control-lg" placeholder="Τόπος παράδοσης"
+                                   value="{{ rfq.delivery_location or '' }}" required>
+                            <label for="deliveryLocationEdit">
+                                <i class="bi bi-geo-alt-fill me-2"></i>Τόπος Παράδοσης
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Submit Deadline -->
+                    <div class="col-lg-3">
+                        <div class="form-group-premium">
+                            <label for="submitDeadlineEdit" class="form-label fw-bold mb-2">
+                                <i class="bi bi-calendar-event me-2"></i>Προθεσμία Υποβολής
+                            </label>
+                            <input type="date" name="submit_deadline" id="submitDeadlineEdit" 
+                                   class="form-control form-control-lg" required
+                                   value="{{ rfq.submit_deadline.strftime('%Y-%m-%d') if rfq.submit_deadline else '' }}">
+                        </div>
+                    </div>
+
+                    <!-- Delivery Deadline -->
+                    <div class="col-lg-3">
+                        <div class="form-group-premium">
+                            <label for="deliveryDeadlineEdit" class="form-label fw-bold mb-2">
+                                <i class="bi bi-calendar-check me-2"></i>Προθεσμία Παράδοσης
+                            </label>
+                            <input type="date" name="delivery_deadline" id="deliveryDeadlineEdit" 
+                                   class="form-control form-control-lg" required
+                                   value="{{ rfq.delivery_deadline.strftime('%Y-%m-%d') if rfq.delivery_deadline else '' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 6: Actions -->
+            <div class="card-footer bg-light border-top p-4 d-flex justify-content-end gap-3">
+                <a href="{{ url_for('company.dashboard') }}" class="btn btn-light btn-lg px-5">
+                    <i class="bi bi-x-circle me-2"></i>Ακύρωση
+                </a>
+                <button type="submit" class="btn btn-primary btn-lg px-5" id="submitBtnEdit">
+                    <i class="bi bi-check-circle me-2"></i>Αποθήκευση Αλλαγών
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Styles -->
+<style>
+.animation-slideUp {
+    animation: slideUp 300ms ease-out;
+}
+
+.icon-box {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 168, 232, 0.1);
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #0F3A5F 0%, #1D5FAE 100%);
+}
+
+.bg-gradient-info {
+    background: linear-gradient(135deg, #00A8E8 0%, #0088CC 100%);
+}
+
+.bg-gradient-success {
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+.bg-gradient-warning {
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+}
+
+.bg-gradient-cyan {
+    background: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);
+}
+
+.bg-info-light {
+    background-color: rgba(0, 168, 232, 0.1) !important;
+}
+
+.bg-warning-light {
+    background-color: rgba(245, 158, 11, 0.1) !important;
+}
+
+.form-control-lg, .form-select-lg {
+    height: calc(3.5rem + 2px);
+    padding: 1rem 1.25rem;
+    font-size: 1rem;
+    border-radius: 0.75rem;
+    border: 2px solid #E5E7EB;
+    transition: all 0.3s ease;
+}
+
+.form-control-lg:focus, .form-select-lg:focus {
+    border-color: #1D5FAE;
+    box-shadow: 0 0 0 0.25rem rgba(29, 95, 174, 0.15);
+}
+
+.table-hover tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(29, 95, 174, 0.05);
+}
+
+.upload-area {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.upload-area:hover {
+    background-color: rgba(29, 95, 174, 0.1) !important;
+    border-color: #1D5FAE !important;
+}
+
+.upload-area.dragover {
+    background-color: rgba(29, 95, 174, 0.15) !important;
+    border-color: #1D5FAE !important;
+}
+
+.border-secondary-light {
+    border-color: #E5E7EB !important;
+}
+
+.btn-lg {
+    padding: 0.875rem 2rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.badge-lg {
+    padding: 0.5rem 1rem;
+    font-size: 0.95rem;
+}
+
+/* Staggered animations */
+.table-hover tbody tr:nth-child(1) { animation: slideUp 300ms ease-out 0ms; }
+.table-hover tbody tr:nth-child(2) { animation: slideUp 300ms ease-out 50ms; }
+.table-hover tbody tr:nth-child(3) { animation: slideUp 300ms ease-out 100ms; }
+.table-hover tbody tr:nth-child(4) { animation: slideUp 300ms ease-out 150ms; }
+</style>
+
+<!-- Scripts -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Drag and drop for file upload
+    const uploadArea = document.getElementById('uploadAreaEdit');
+    const fileInput = document.getElementById('documentUploadEdit');
+
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            updateFileNameEdit();
+        }
+    });
+
+    fileInput.addEventListener('change', updateFileNameEdit);
+
+    function updateFileNameEdit() {
+        if (fileInput.files.length > 0) {
+            const fileName = fileInput.files[0].name;
+            uploadArea.innerHTML = `
+                <i class="bi bi-check-circle fs-2 text-success mb-2 d-block"></i>
+                <h6 class="mb-1 fw-bold text-success">${fileName}</h6>
+                <small class="text-muted">Έτοιμο για ανέβασμα</small>
+            `;
+        }
+    }
+
+    // Initialize Select2
+    $('#suppliersSelectEdit').select2({
+        width: '100%',
+        allowClear: false
+    });
+});
+
+function addRowEdit() {
+    const html = `
+    <tr class="item-row animation-slideUp">
+        <td>
+            <input type="text" name="item_desc[]" class="form-control form-control-sm border-0 fw-500" 
+                   placeholder="Περιγραφή είδους" required>
+        </td>
+        <td>
+            <select name="item_unit[]" class="form-select form-select-sm border-0" required>
+                <option value="">--</option>
+                <option value="τμχ">τμχ</option>
+                <option value="m">m</option>
+                <option value="kg">kg</option>
+                <option value="tn">tn</option>
+                <option value="σετ">σετ</option>
+                <option value="κουτί">κουτί</option>
+                <option value="λίτρα">λίτρα</option>
+                <option value="m2">m2</option>
+                <option value="m3">m3</option>
+                <option value="παλέτα">παλέτα</option>
+            </select>
+        </td>
+        <td>
+            <input type="number" step="0.01" min="0.01" name="item_qty[]" 
+                   class="form-control form-control-sm border-0 text-center" 
+                   placeholder="0.00" required>
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-outline-danger border-0 px-2" 
+                    onclick="this.closest('.item-row').remove()" title="Διαγραφή">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    </tr>`;
+    
+    document.getElementById('itemsTableEdit').querySelector('tbody').insertAdjacentHTML('beforeend', html);
+}
+
+function selectAllSuppliers(selectAll) {
+    const select = document.getElementById('suppliersSelectEdit');
+    const options = select.querySelectorAll('option');
+    
+    options.forEach(option => {
+        option.selected = selectAll;
+    });
+    
+    $(select).trigger('change');
+}
+</script>
+
+<!-- Include animations from premium-design-system -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/premium-design-system.css') }}">
+
+{% endblock %}

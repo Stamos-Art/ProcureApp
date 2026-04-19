@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container mt-4">
+  <h3 class="mb-4">Ιστορικό Προσφορών</h3>
+
+  {% if bids %}
+  <div class="table-responsive">
+    <table class="table table-striped">
+      <thead class="table-dark">
+        <tr>
+          <th>Ζήτηση #</th>
+          <th>Τίτλος</th>
+          <th>Κατάσταση</th>
+          <th>Ημερομηνία Υποβολής</th>
+          <th>Ενέργειες</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for bid in bids %}
+        <tr>
+          <td><strong>#{{ bid.request_id }}</strong></td>
+          <td>{{ bid.rfq.title }}</td>
+          <td><span class="badge bg-secondary">{{ bid.status }}</span></td>
+          <td>{{ bid.created_at.strftime('%d/%m/%Y %H:%M') if bid.created_at else '-' }}</td>
+          <td>
+            <a href="{{ url_for('supplier.bid', req_id=bid.request_id) }}" class="btn btn-sm btn-info">Προβολή</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="alert alert-info">Δεν υπάρχουν προσφορές</div>
+  {% endif %}
+</div>
+
+{% endblock %}
