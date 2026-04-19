@@ -571,7 +571,7 @@ def award_bids(req_id):
 # ============= BID ACCEPT/REJECT ENDPOINTS =============
 
 @company_bp.route("/requests/<int:req_id>/bids/<int:bid_id>/accept", methods=["POST"])
-@require_role("chief")
+@require_roles("company", "chief")
 def accept_bid(req_id, bid_id):
     """Chief accepts/awards a bid (winning bid)"""
     rfq = RequestRFQ.query.get_or_404(req_id)
@@ -615,7 +615,7 @@ def accept_bid(req_id, bid_id):
     return redirect(url_for('company.request_detail', req_id=req_id))
 
 @company_bp.route("/requests/<int:req_id>/bids/<int:bid_id>/reject", methods=["POST"])
-@require_role("chief")
+@require_roles("company", "chief")
 def reject_bid(req_id, bid_id):
     """Chief rejects a bid"""
     rfq = RequestRFQ.query.get_or_404(req_id)

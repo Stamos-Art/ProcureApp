@@ -14,6 +14,13 @@
     Δημιουργός: {{ rfq.created_by }} | {{ rfq.created_at.strftime('%d/%m/%Y %H:%M') if rfq.created_at else '' }}
 </p>
 
+{% if rfq.status == 'returned_for_revision' and rfq.denial_reason %}
+<div class="alert alert-warning border-warning shadow-sm mb-4">
+    <div class="fw-bold mb-1"><i class="bi bi-exclamation-triangle me-1"></i>Αιτιολογία Επιστροφής για Αναθεώρηση</div>
+    <div class="small">{{ rfq.denial_reason }}</div>
+</div>
+{% endif %}
+
 {% set can_modify = rfq.status not in ['closed', 'received', 'cancelled'] and (rfq.status != 'pending_final_approval' or session.get('role') == 'chief') %}
 
 <div class="row mb-4 g-3">
@@ -450,7 +457,7 @@
                             Λεπτομέρειες
                         </button>
                         
-                        {% if session.get('role') == 'chief' and rfq.status in ['open', 'pending_final_approval', 'returned_for_revision'] %}
+                        {% if session.get('role') in ['chief', 'company'] and rfq.status in ['open', 'pending_final_approval', 'returned_for_revision'] %}
                             {% if bid.status == 'accepted' %}
                             <form method="post" action="{{ url_for('company.award_all_from_bid', req_id=rfq.id, bid_id=bid.id) }}" class="d-inline">
                                 <button type="submit" class="btn btn-sm btn-success ms-2" title="Ανάθεση ολόκληρης της προσφοράς">
@@ -460,7 +467,7 @@
                             {% endif %}
                         {% endif %}
                         
-                        {% if session.get('role') == 'chief' and rfq.status in ['open', 'pending_final_approval', 'returned_for_revision'] and bid.status == 'submitted' %}
+                        {% if session.get('role') in ['chief', 'company'] and rfq.status in ['open', 'pending_final_approval', 'returned_for_revision'] and bid.status == 'submitted' %}
                         <div class="btn-group btn-group-sm ms-2" role="group">
                             <form method="post" action="{{ url_for('company.accept_bid', req_id=rfq.id, bid_id=bid.id) }}" class="d-inline">
                                 <button type="submit" class="btn btn-success" title="Αποδοχή ως Νικητήρια Προσφορά">
@@ -688,11 +695,9 @@
 
         {% if rfq.status == 'pending_final_approval' %}
             {% if session.get('role') == 'chief' %}
-                <form method="post" action="{{ url_for('admin.revert_approval', req_id=rfq.id) }}" class="d-inline">
-                    <button type="submit" class="btn btn-warning px-4 shadow-sm fw-bold">
-                        <i class="bi bi-arrow-return-left me-1"></i> Επιστροφή για Αναθεώρηση
-                    </button>
-                </form>
+                <button type="button" class="btn btn-warning px-4 shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#revertApprovalModal">
+                    <i class="bi bi-arrow-return-left me-1"></i> Επιστροφή για Αναθεώρηση
+                </button>
                 <form method="post" action="{{ url_for('admin.approve_final', req_id=rfq.id) }}" class="d-inline">
                     <button type="submit" class="btn btn-success px-4 shadow-sm fw-bold">
                         <i class="bi bi-shield-check me-1"></i> Budget Approval & Close
@@ -769,6 +774,29 @@
       </div>
     </div>
   </div>
+</div>
+{% endif %}
+
+{% if rfq.status == 'pending_final_approval' and session.get('role') == 'chief' %}
+<div class="modal fade" id="revertApprovalModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title fw-bold"><i class="bi bi-arrow-return-left me-2"></i>Επιστροφή για Αναθεώρηση</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{{ url_for('admin.revert_approval', req_id=rfq.id) }}">
+                <div class="modal-body p-4">
+                    <label class="form-label fw-bold mb-2">Αιτιολογία (υποχρεωτικό)</label>
+                    <textarea class="form-control" name="revert_reason" rows="4" placeholder="Περιγράψτε τι πρέπει να διορθωθεί πριν την έγκριση..." required></textarea>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Άκυρο</button>
+                    <button type="submit" class="btn btn-warning px-4 fw-bold"><i class="bi bi-send me-1"></i>Αποστολή για Αναθεώρηση</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endif %}
 
@@ -871,7 +899,7 @@
 
 <!-- Bid Rejection Modals (one per bid) -->
 {% for bid in bids %}
-{% if session.get('role') == 'chief' and rfq.status in ['open', 'pending_final_approval', 'returned_for_revision'] and bid.status == 'submitted' %}
+{% if session.get('role') in ['chief', 'company'] and rfq.status in ['open', 'pending_final_approval', 'returned_for_revision'] and bid.status == 'submitted' %}
 <div class="modal fade" id="rejectBidModal{{ bid.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0 shadow">
