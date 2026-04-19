@@ -10,6 +10,7 @@ from app import db
 class RFQStatus(str, Enum):
     """RFQ workflow statuses"""
     PENDING = 'pending'                      # Awaiting chief approval
+    RETURNED_FOR_REVISION = 'returned_for_revision'  # Returned by chief for creator revision
     OPEN = 'open'                            # Chief approved, suppliers can bid
     PENDING_FINAL_APPROVAL = 'pending_final_approval'  # Award > approval_limit, awaiting chief final approval
     CLOSED = 'closed'                        # Chief awarded, items in delivery/fulfillment

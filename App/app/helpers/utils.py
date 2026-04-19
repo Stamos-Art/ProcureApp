@@ -224,6 +224,7 @@ def get_status_badge(status):
     """Get badge class for RFQ status"""
     badge_map = {
         'pending': 'badge bg-warning text-dark',
+        'returned_for_revision': 'badge bg-warning text-dark',
         'open': 'badge bg-info',
         'closed': 'badge bg-success',
         'received': 'badge bg-success',
@@ -256,6 +257,7 @@ def get_status_display_name(status):
 
     display_map = {
         'pending': 'Pending',
+        'returned_for_revision': 'Returned for revision',
         'open': 'Open',
         'closed': 'Closed',
         'received': 'Received',

@@ -54,6 +54,10 @@
                             <span class="filter-label">Pending approval</span>
                         </label>
                         <label class="filter-item">
+                            <input type="checkbox" name="phase" value="returned_for_revision" class="filter-checkbox" {% if 'returned_for_revision' in phase_filters %}checked{% endif %}>
+                            <span class="filter-label">Returned for revision</span>
+                        </label>
+                        <label class="filter-item">
                             <input type="checkbox" name="phase" value="pending_final_approval" class="filter-checkbox" {% if 'pending_final_approval' in phase_filters %}checked{% endif %}>
                             <span class="filter-label">Awaiting budget approval</span>
                         </label>

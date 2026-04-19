@@ -31,8 +31,13 @@ RFQ_TRANSITIONS = {
         RFQStatus.CANCELLED.value: ['company', 'chief'],                    # Cancel if no awards yet
     },
     RFQStatus.PENDING_FINAL_APPROVAL.value: {
+        RFQStatus.RETURNED_FOR_REVISION.value: ['chief'],                  # Chief sends back for revision
         RFQStatus.CLOSED.value: ['chief'],                                  # Chief final approval
         RFQStatus.OPEN.value: ['chief'],                                    # Chief rejects award, reopen bidding
+    },
+    RFQStatus.RETURNED_FOR_REVISION.value: {
+        RFQStatus.PENDING.value: ['creator', 'company'],                   # Creator edits and resubmits
+        RFQStatus.CANCELLED.value: ['company', 'chief'],                   # Can still be cancelled before republish
     },
     RFQStatus.DENIED.value: {
         RFQStatus.PENDING.value: ['creator'],                               # Creator re-edits and resubmits

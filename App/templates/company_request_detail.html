@@ -450,7 +450,7 @@
                             Λεπτομέρειες
                         </button>
                         
-                        {% if session.get('role') == 'chief' and rfq.status in ['open', 'pending_final_approval'] %}
+                        {% if session.get('role') == 'chief' and rfq.status in ['open', 'pending_final_approval', 'returned_for_revision'] %}
                             {% if bid.status == 'accepted' %}
                             <form method="post" action="{{ url_for('company.award_all_from_bid', req_id=rfq.id, bid_id=bid.id) }}" class="d-inline">
                                 <button type="submit" class="btn btn-sm btn-success ms-2" title="Ανάθεση ολόκληρης της προσφοράς">
@@ -460,7 +460,7 @@
                             {% endif %}
                         {% endif %}
                         
-                        {% if session.get('role') == 'chief' and rfq.status in ['open', 'pending_final_approval'] and bid.status == 'submitted' %}
+                        {% if session.get('role') == 'chief' and rfq.status in ['open', 'pending_final_approval', 'returned_for_revision'] and bid.status == 'submitted' %}
                         <div class="btn-group btn-group-sm ms-2" role="group">
                             <form method="post" action="{{ url_for('company.accept_bid', req_id=rfq.id, bid_id=bid.id) }}" class="d-inline">
                                 <button type="submit" class="btn btn-success" title="Αποδοχή ως Νικητήρια Προσφορά">
@@ -690,7 +690,7 @@
             {% if session.get('role') == 'chief' %}
                 <form method="post" action="{{ url_for('admin.revert_approval', req_id=rfq.id) }}" class="d-inline">
                     <button type="submit" class="btn btn-warning px-4 shadow-sm fw-bold">
-                        <i class="bi bi-arrow-return-left me-1"></i> Επιστροφή στον Υπάλληλο
+                        <i class="bi bi-arrow-return-left me-1"></i> Επιστροφή για Αναθεώρηση
                     </button>
                 </form>
                 <form method="post" action="{{ url_for('admin.approve_final', req_id=rfq.id) }}" class="d-inline">
@@ -871,7 +871,7 @@
 
 <!-- Bid Rejection Modals (one per bid) -->
 {% for bid in bids %}
-{% if session.get('role') == 'chief' and rfq.status in ['open', 'pending_final_approval'] and bid.status == 'submitted' %}
+{% if session.get('role') == 'chief' and rfq.status in ['open', 'pending_final_approval', 'returned_for_revision'] and bid.status == 'submitted' %}
 <div class="modal fade" id="rejectBidModal{{ bid.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0 shadow">

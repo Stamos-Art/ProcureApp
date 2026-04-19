@@ -160,6 +160,43 @@ def deny(req_id):
     flash("Η ζήτηση απορρίφθηκε.", "warning")
     return redirect(url_for('company.request_detail', req_id=req_id))
 
+@admin_bp.route("/requests/<int:req_id>/revert-approval", methods=["POST"])
+@require_role("chief")
+def revert_approval(req_id):
+    """Send an over-limit RFQ back for company revision."""
+    rfq = RequestRFQ.query.get_or_404(req_id)
+
+    if rfq.status != RFQStatus.PENDING_FINAL_APPROVAL:
+        flash("Η ζήτηση δεν βρίσκεται σε κατάσταση τελικής έγκρισης.", "warning")
+        return redirect(url_for('company.request_detail', req_id=req_id))
+
+    try:
+        result = update_rfq_status(rfq, RFQStatus.RETURNED_FOR_REVISION, session.get('role'), rfq.created_by)
+        if not result['success']:
+            flash(f"Σφάλμα: {result['message']}", "danger")
+            return redirect(url_for('company.request_detail', req_id=req_id))
+    except Exception as e:
+        flash(f"Σφάλμα κατά την επιστροφή: {str(e)}", "danger")
+        return redirect(url_for('company.request_detail', req_id=req_id))
+
+    # Clear pending award data so the RFQ can be revised cleanly.
+    ItemAward.query.filter_by(request_id=req_id).delete(synchronize_session=False)
+    rfq.award_date = None
+    rfq.winning_bid_id = None
+    rfq.approved_by = None
+    rfq.approved_at = None
+
+    log_action(req_id, "Επιστροφή ζήτησης για αναθεώρηση από τον Chief.")
+
+    u = User.query.filter_by(display_name=rfq.created_by).first()
+    if u:
+        notify_user(u.username, f"Η ζήτηση #{req_id} επέστρεψε για αναθεώρηση.",
+                   url_for('company.request_detail', req_id=req_id))
+
+    db.session.commit()
+    flash("Η ζήτηση επέστρεψε για αναθεώρηση.", "info")
+    return redirect(url_for('company.request_detail', req_id=req_id))
+
 @admin_bp.route("/requests/<int:req_id>/approve_final", methods=["POST"])
 @require_role("chief")
 def approve_final(req_id):

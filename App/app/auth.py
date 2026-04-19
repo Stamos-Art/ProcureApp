@@ -30,7 +30,7 @@ def is_editable_by_current_user(rfq) -> bool:
     """Check if current user can edit the RFQ"""
     if session.get("name") != rfq.created_by:
         return False
-    return rfq.status == RFQStatus.PENDING
+    return rfq.status in [RFQStatus.PENDING, RFQStatus.RETURNED_FOR_REVISION]
 
 def get_phase_key(rfq) -> str:
     """Determine the workflow phase for an RFQ"""
@@ -40,6 +40,8 @@ def get_phase_key(rfq) -> str:
         return "denied"
     if rfq.status == RFQStatus.PENDING:
         return "awaiting_approval"
+    if rfq.status == RFQStatus.RETURNED_FOR_REVISION:
+        return "returned_for_revision"
     if rfq.status == RFQStatus.PENDING_FINAL_APPROVAL:
         return "pending_final_approval"
     if rfq.status == RFQStatus.RECEIVED:
@@ -64,6 +66,11 @@ def phase_info(rfq):
             "label": "Awaiting budget approval",
             "badge": "badge bg-danger",
             "icon": "bi-shield-lock"
+        },
+        "returned_for_revision": {
+            "label": "Returned for revision",
+            "badge": "badge bg-warning text-dark",
+            "icon": "bi-arrow-return-left"
         },
         "awaiting_offers": {
             "label": "Awaiting offers",

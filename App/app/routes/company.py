@@ -42,7 +42,7 @@ def dashboard():
     page = request.args.get('page', 1, type=int)
     per_page = 10
     q = (request.args.get("q") or "").strip()
-    phase_filters = [v for v in _parse_multi_values(request.args, 'phase') if v in {'awaiting_approval', 'awaiting_offers', 'offers_received', 'pending_final_approval', 'awarded', 'received', 'denied', 'cancelled'}]
+    phase_filters = [v for v in _parse_multi_values(request.args, 'phase') if v in {'awaiting_approval', 'returned_for_revision', 'awaiting_offers', 'offers_received', 'pending_final_approval', 'awarded', 'received', 'denied', 'cancelled'}]
     cost_center_filters = [v for v in _parse_multi_values(request.args, 'cost_center') if v.isdigit()]
     period_filters = [v for v in _parse_multi_values(request.args, 'period') if v in {'week', 'month', 'quarter', 'older'}]
     phase_query = ','.join(phase_filters)
@@ -407,7 +407,7 @@ def edit_request(req_id):
                 qty = 1.0
             db.session.add(RequestItem(request_id=rfq.id, description=desc, unit=unit, quantity=qty))
         
-        if rfq.status == RFQStatus.DENIED:
+        if rfq.status in [RFQStatus.DENIED, RFQStatus.RETURNED_FOR_REVISION]:
             rfq.status = RFQStatus.PENDING
             rfq.denial_reason = None
         
