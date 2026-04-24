@@ -32,6 +32,16 @@ def is_editable_by_current_user(rfq) -> bool:
         return False
     return rfq.status in [RFQStatus.PENDING, RFQStatus.RETURNED_FOR_REVISION]
 
+
+def can_approve_rfq(rfq) -> bool:
+    """Check if current user can approve/award this RFQ."""
+    role = session.get("role")
+    if role == "chief":
+        return True
+    if role != "company":
+        return False
+    return session.get("name") == rfq.created_by
+
 def get_phase_key(rfq) -> str:
     """Determine the workflow phase for an RFQ"""
     if rfq.status == RFQStatus.CANCELLED:
@@ -154,5 +164,6 @@ def utility_processor():
     """Register utility functions for Jinja templates"""
     return dict(
         phase_info=phase_info,
-        is_editable_by_current_user=is_editable_by_current_user
+        is_editable_by_current_user=is_editable_by_current_user,
+        can_approve_rfq=can_approve_rfq
     )

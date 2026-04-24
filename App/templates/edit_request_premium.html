@@ -23,8 +23,8 @@
                 <strong>
                     {% if rfq.status == 'draft' %}Προσχέδιο
                     {% elif rfq.status == 'open' %}Ανοιχτή
-                    {% elif rfq.status == 'closed' %}Κλειστή
-                    {% elif rfq.status == 'awarded' %}Ανατεθειμένη
+                    {% elif rfq.status == 'pending_delivery' %}Κλειστή
+                    {% elif rfq.status == 'pending_delivery' %}Ανατεθειμένη
                     {% endif %}
                 </strong>
             </span>

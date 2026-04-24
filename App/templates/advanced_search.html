@@ -58,7 +58,7 @@
                              data-bs-parent="#filtersAccordion">
                             <div class="accordion-body pt-0">
                                 <div class="row g-3">
-                                    {% set statuses = [('draft', 'Draft'), ('open', 'Open'), ('closed', 'Closed'), ('awarded', 'Awarded')] %}
+                                    {% set statuses = [('draft', 'Draft'), ('open', 'Open'), ('pending_delivery', 'Closed'), ('pending_delivery', 'Pending Delivery')] %}
                                     {% for status_val, status_label in statuses %}
                                     <div class="col-md-6">
                                         <div class="form-check">
@@ -265,9 +265,9 @@
                                     {% set badge_class = 'bg-secondary-light text-secondary' %}
                                     {% if rfq.status == 'open' %}
                                         {% set badge_class = 'bg-success' %}
-                                    {% elif rfq.status == 'closed' %}
+                                    {% elif rfq.status == 'pending_delivery' %}
                                         {% set badge_class = 'bg-danger' %}
-                                    {% elif rfq.status == 'awarded' %}
+                                    {% elif rfq.status == 'pending_delivery' %}
                                         {% set badge_class = 'bg-info' %}
                                     {% endif %}
                                     <span class="badge {{ badge_class }}">{{ rfq.status }}</span>

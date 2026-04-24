@@ -13,10 +13,26 @@ from models import (
     db, RequestRFQ, Bid, BidLine, BidRevision, RequestItem, ItemAward, ItemReceipt, RFQStatus, BidStatus
 )
 from app.auth import require_role, log_action
-from app.helpers.utils import build_stored_upload_filename
+from app.helpers.utils import build_stored_upload_filename, display_attachment_name
 from app.services.status_service import update_bid_status, StatusTransitionError
 
 supplier_bp = Blueprint('supplier', __name__, url_prefix='/supplier')
+
+# RFQ statuses that should be visible on supplier-facing screens.
+SUPPLIER_VISIBLE_RFQ_STATUSES = [
+    RFQStatus.OPEN,
+    RFQStatus.PENDING_FINAL_APPROVAL,
+    RFQStatus.CLOSED,
+    RFQStatus.RECEIVED,
+]
+
+# RFQ statuses that a supplier can open in the bid/detail page.
+SUPPLIER_BID_PAGE_ALLOWED_STATUSES = [
+    RFQStatus.OPEN,
+    RFQStatus.PENDING_FINAL_APPROVAL,
+    RFQStatus.CLOSED,
+    RFQStatus.RECEIVED,
+]
 
 
 def _parse_multi_values(args, key):
@@ -31,8 +47,10 @@ def _parse_multi_values(args, key):
                 values.append(cleaned)
     return values
 
-def _get_supplier_rfq_status(rfq, bid, reopen_bid_ids):
+def _get_supplier_rfq_status(rfq, bid, reopen_bid_ids, awarded_bid_ids=None):
     """Return the supplier-facing status label key for an RFQ row."""
+    awarded_bid_ids = awarded_bid_ids or set()
+
     if not bid:
         if rfq.status in [RFQStatus.CLOSED, RFQStatus.RECEIVED]:
             return 'no_bid'
@@ -43,6 +61,8 @@ def _get_supplier_rfq_status(rfq, bid, reopen_bid_ids):
     if bid.status == BidStatus.SUBMITTED:
         return 'submitted'
     if bid.status == BidStatus.ACCEPTED:
+        if bid.id in awarded_bid_ids:
+            return 'awarded'
         return 'accepted'
     if bid.status == BidStatus.REJECTED:
         return 'reopen' if bid.id in reopen_bid_ids else 'rejected'
@@ -173,12 +193,13 @@ def dashboard():
     
     page = request.args.get('page', 1, type=int)
     per_page = 10
-    status_filter = (request.args.get('status', 'all') or 'all').strip().lower()
+    status_filters = [
+        v for v in _parse_multi_values(request.args, 'status')
+        if v in {'open', 'submitted', 'accepted', 'awarded', 'rejected', 'reopen', 'no_bid', 'draft'}
+    ]
     q = (request.args.get('q') or '').strip()
     bid_state_filters = [v for v in _parse_multi_values(request.args, 'bid_state') if v in {'submitted', 'draft', 'reopen', 'rejected', 'no_bid'}]
     deadline_filters = [v for v in _parse_multi_values(request.args, 'deadline') if v in {'week', 'month', 'quarter', 'older'}]
-    if status_filter not in {'all', 'open', 'submitted', 'accepted', 'rejected', 'reopen', 'no_bid', 'draft'}:
-        status_filter = 'all'
     
     # Get current supplier info
     username = session.get('username')
@@ -192,8 +213,8 @@ def dashboard():
     
     qry = RequestRFQ.query.filter(RequestRFQ.id.in_(allowed_rfq_ids)) if allowed_rfq_ids else RequestRFQ.query.filter(RequestRFQ.id == -1)
     
-    # Filter out DENIED and CANCELLED RFQs - suppliers shouldn't see them
-    qry = qry.filter(~RequestRFQ.status.in_([RFQStatus.DENIED, RFQStatus.CANCELLED]))
+    # Supplier list must include only post-approval RFQs.
+    qry = qry.filter(RequestRFQ.status.in_(SUPPLIER_VISIBLE_RFQ_STATUSES))
 
     if q:
         like = f"%{q}%"
@@ -228,21 +249,14 @@ def dashboard():
         RequestRFQ.status.in_([RFQStatus.CLOSED, RFQStatus.RECEIVED])
     ).all()
     award_request_ids = {a.request_id for a in awards}
+    awarded_bid_ids = {a.bid_id for a in awards}
 
     # Apply status filter semantics for supplier workflow
     filtered_rfqs = list(all_rfqs)
-    if status_filter == 'open':
+    if status_filters:
         filtered_rfqs = [
             r for r in filtered_rfqs
-            if r.status in [RFQStatus.OPEN, RFQStatus.PENDING_FINAL_APPROVAL]
-        ]
-    elif status_filter == 'awarded':
-        filtered_rfqs = [r for r in filtered_rfqs if r.id in award_request_ids]
-    elif status_filter == 'pending':
-        filtered_rfqs = [
-            r for r in filtered_rfqs
-            if r.status in [RFQStatus.OPEN, RFQStatus.PENDING_FINAL_APPROVAL]
-            and (r.id not in bids_map or bids_map[r.id].status != BidStatus.SUBMITTED)
+            if _get_supplier_rfq_status(r, bids_map.get(r.id), reopen_bid_ids, awarded_bid_ids) in status_filters
         ]
 
     if bid_state_filters:
@@ -298,27 +312,52 @@ def dashboard():
             if rfq.status in [RFQStatus.OPEN, RFQStatus.PENDING_FINAL_APPROVAL]:
                 pending_count += 1
 
-    awards_count = len([rfq for rfq in filtered_rfqs if rfq.id in award_request_ids])
+    filtered_request_ids = {rfq.id for rfq in filtered_rfqs}
+
+    # Item-level awarded count (exclude shipping/combo awards with no request_item_id)
+    awards_count = len([
+        aw for aw in awards
+        if aw.request_item_id is not None and aw.request_id in filtered_request_ids
+    ])
+
+    # Fully awarded orders: supplier has awards for all non-shipping items in the RFQ
+    non_shipping_item_counts = {}
+    if filtered_request_ids:
+        for item in RequestItem.query.filter(RequestItem.request_id.in_(filtered_request_ids)).all():
+            non_shipping_item_counts[item.request_id] = non_shipping_item_counts.get(item.request_id, 0) + 1
+
+    supplier_awarded_items_by_request = {}
+    for aw in awards:
+        if aw.request_item_id is None or aw.request_id not in filtered_request_ids:
+            continue
+        supplier_awarded_items_by_request.setdefault(aw.request_id, set()).add(aw.request_item_id)
+
+    full_awarded_count = 0
+    for request_id in filtered_request_ids:
+        total_items = non_shipping_item_counts.get(request_id, 0)
+        if total_items <= 0:
+            continue
+        awarded_items = len(supplier_awarded_items_by_request.get(request_id, set()))
+        if awarded_items >= total_items:
+            full_awarded_count += 1
+
     total_awards_value = Decimal(0)
     for award in awards:
         total_awards_value += (award.line_total or Decimal(0))
     
     # Calculate metrics
     avg_bid_value = sum(bid_values) / len(bid_values) if bid_values else 0
-    win_rate = (awards_count / submitted_count * 100) if submitted_count > 0 else 0
+    win_rate = (full_awarded_count / submitted_count * 100) if submitted_count > 0 else 0
     
     # Pagination
     total_items = len(filtered_rfqs)
     total_pages = (total_items + per_page - 1) // per_page
     start_idx = (page - 1) * per_page
     paginated_rfqs = filtered_rfqs[start_idx : start_idx + per_page]
-
-    awarded_rfqs = [rfq for rfq in paginated_rfqs if rfq.id in award_request_ids]
     
     return render_template("supplier_dash_improved.html",
                          rfqs=paginated_rfqs,
-                         awarded_rfqs=awarded_rfqs,
-                         status_filter=status_filter,
+                         status_filters=status_filters,
                          q=q,
                          bid_state_filters=bid_state_filters,
                          deadline_filters=deadline_filters,
@@ -326,8 +365,10 @@ def dashboard():
                          total_pages=total_pages,
                          bids_map=bids_map,
                          reopen_bid_ids=reopen_bid_ids,
+                         awarded_bid_ids=awarded_bid_ids,
                          pending_count=pending_count,
                          submitted_count=submitted_count,
+                         full_awarded_count=full_awarded_count,
                          awards_count=awards_count,
                          avg_bid_value=avg_bid_value,
                          total_awards_value=total_awards_value,
@@ -368,15 +409,17 @@ def history():
     ).filter(
         ItemAward.supplier_name == supplier_name,
         RequestRFQ.status.in_([RFQStatus.CLOSED, RFQStatus.RECEIVED])
-    ).all() if status_filter in ['won', 'lost'] else []
-    award_bid_ids = [a.bid_id for a in all_awards] if all_awards else []
+    ).all()
+    awarded_bid_ids = {a.bid_id for a in all_awards}
     
     # Filter by status if requested
     if status_filter and status_filter != 'all':
         if status_filter == 'submitted':
             bids = [b for b in bids if b.status == 'submitted']
         elif status_filter == 'accepted':
-            bids = [b for b in bids if b.status == 'accepted']
+            bids = [b for b in bids if b.status == 'accepted' and b.id not in awarded_bid_ids]
+        elif status_filter == 'awarded':
+            bids = [b for b in bids if b.id in awarded_bid_ids]
         elif status_filter == 'rejected':
             bids = [b for b in bids if b.status == 'rejected' and b.id not in reopen_bid_ids]
         elif status_filter == 'reopen':
@@ -458,9 +501,9 @@ def bid(req_id):
     
     rfq = RequestRFQ.query.get_or_404(req_id)
     
-    # Block access to DENIED and CANCELLED RFQs
-    if rfq.status in [RFQStatus.DENIED, RFQStatus.CANCELLED]:
-        flash("Αυτή η ζήτηση δεν είναι πλέον διαθέσιμη.", "danger")
+    # Block direct access to pre-approval/non-supplier RFQ states.
+    if rfq.status not in SUPPLIER_BID_PAGE_ALLOWED_STATUSES:
+        flash("Αυτή η ζήτηση δεν είναι διαθέσιμη για τον προμηθευτή.", "danger")
         return redirect(url_for('supplier.dashboard'))
     
     # Check if supplier is allowed
@@ -890,4 +933,5 @@ def bid(req_id):
                          award_received_qty=award_received_qty,
                          receipt_summary=receipt_summary,
                          overall_discount_amount=overall_discount_amount,
-                         final_award_total=final_award_total)
+                         final_award_total=final_award_total,
+                         display_attachment_name=display_attachment_name)

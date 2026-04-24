@@ -293,7 +293,7 @@
         <div class="card-mini-kpi-icon">✅</div>
         <div class="card-mini-kpi-content">
             <h4>Ολοκληρωμένες</h4>
-            <div class="card-mini-kpi-value">{{ rfqs|selectattr('status', '==', 'closed')|list|length }}</div>
+            <div class="card-mini-kpi-value">{{ rfqs|selectattr('status', '==', 'pending_delivery')|list|length }}</div>
         </div>
     </div>
     
@@ -324,7 +324,7 @@
                     <option value="awaiting_approval" {% if phase == 'awaiting_approval' %}selected{% endif %}>Προς Έγκριση</option>
                     <option value="awaiting_offers" {% if phase == 'awaiting_offers' %}selected{% endif %}>Αναμονή Προσφορών</option>
                     <option value="offers_received" {% if phase == 'offers_received' %}selected{% endif %}>Προσφορές Λήφθησαν</option>
-                    <option value="awarded" {% if phase == 'awarded' %}selected{% endif %}>Ανατεθειμένες</option>
+                    <option value="pending_delivery" {% if phase == 'pending_delivery' %}selected{% endif %}>Ανατεθειμένες</option>
                     <option value="cancelled" {% if phase == 'cancelled' %}selected{% endif %}>Ακυρωμένες</option>
                 </select>
             </div>

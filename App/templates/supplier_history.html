@@ -23,6 +23,7 @@
           <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
           <option value="submitted" {% if status_filter == 'submitted' %}selected{% endif %}>Submitted</option>
           <option value="accepted" {% if status_filter == 'accepted' %}selected{% endif %}>Accepted</option>
+          <option value="pending_delivery" {% if status_filter == 'pending_delivery' %}selected{% endif %}>Pending Delivery</option>
           <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
           <option value="reopen" {% if status_filter == 'reopen' %}selected{% endif %}>Reopen</option>
           <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
@@ -55,8 +56,10 @@
                 <span class="badge bg-info text-dark">Reopen</span>
               {% elif bid.status == 'submitted' %}
                 <span class="badge bg-success">Submitted</span>
+              {% elif bid.status == 'accepted' and award_map.get(bid.id) %}
+                <span class="badge bg-success">Pending Delivery</span>
               {% elif bid.status == 'accepted' %}
-                <span class="badge bg-success">Accepted</span>
+                <span class="badge badge-secondary">Accepted</span>
               {% elif bid.status == 'draft' %}
                 <span class="badge bg-warning text-dark">Draft</span>
               {% elif bid.status == 'rejected' %}

@@ -15,8 +15,9 @@ from models import (
     RequestRFQ, RequestItem, Bid, BidLine, CostCenter, User, AllowedSupplier,
     ItemAward, ItemReceipt, RFQStatus, BidStatus
 )
-from app.auth import require_roles, require_role, is_editable_by_current_user, log_action, notify_user, notify_role
+from app.auth import require_roles, require_role, is_editable_by_current_user, can_approve_rfq, log_action, notify_user, notify_role, phase_info
 from app.services.status_service import update_bid_status, StatusTransitionError, auto_withdraw_bids_on_rfq_status_change
+from app.helpers.utils import build_stored_upload_filename, display_attachment_name
 
 company_bp = Blueprint('company', __name__, url_prefix='/company')
 
@@ -32,6 +33,29 @@ def _parse_multi_values(args, key):
             if cleaned and cleaned not in values:
                 values.append(cleaned)
     return values
+
+
+def _enforce_approval_rights_or_redirect(rfq):
+    """Allow approval actions only to RFQ creator (company) or chief."""
+    if can_approve_rfq(rfq):
+        return None
+
+    actor = session.get('name') or session.get('username') or 'Unknown user'
+    log_action(rfq.id, f"Απόρριψη ενέργειας ανάθεσης: ο χρήστης {actor} δεν είναι δημιουργός της ζήτησης.")
+    db.session.commit()
+    flash("Μόνο ο δημιουργός της ζήτησης μπορεί να εγκρίνει ή να κάνει ανάθεση.", "danger")
+    return redirect(url_for('company.request_detail', req_id=rfq.id))
+
+
+def _enforce_approval_rights_or_json(rfq):
+    """Allow approval actions only to RFQ creator (company) or chief for AJAX endpoints."""
+    if can_approve_rfq(rfq):
+        return None
+
+    actor = session.get('name') or session.get('username') or 'Unknown user'
+    log_action(rfq.id, f"Απόρριψη AJAX ενέργειας ανάθεσης: ο χρήστης {actor} δεν είναι δημιουργός της ζήτησης.")
+    db.session.commit()
+    return jsonify({"success": False, "message": "Μόνο ο δημιουργός της ζήτησης μπορεί να εγκρίνει ή να κάνει ανάθεση."})
 
 @company_bp.route("/")
 @require_roles("company", "chief")
@@ -51,7 +75,6 @@ def dashboard():
     cost_center_query = ','.join(cost_center_filters)
     
     # Base query
-    from app.auth import phase_info
     qry = RequestRFQ.query
     
     if q:
@@ -134,7 +157,7 @@ def new_request():
         title = request.form.get("title", "").strip()
         if not title:
             flash("Ο τίτλος είναι υποχρεωτικός.", "danger")
-            return render_template("new_request.html", suppliers=suppliers, cost_centers=cost_centers, clone_rfq=clone_rfq)
+            return render_template("new_request.html", suppliers=suppliers, cost_centers=cost_centers, clone_rfq=clone_rfq, display_attachment_name=display_attachment_name)
         
         # Create RFQ
         rfq = RequestRFQ(
@@ -151,12 +174,12 @@ def new_request():
             d_deadline = datetime.strptime(request.form.get("delivery_deadline"), "%Y-%m-%d")
             if d_deadline < s_deadline:
                 flash("Η ημερομηνία παράδοσης δεν μπορεί να είναι νωρίτερα.", "danger")
-                return render_template("new_request.html", suppliers=suppliers, cost_centers=cost_centers, clone_rfq=clone_rfq)
+                return render_template("new_request.html", suppliers=suppliers, cost_centers=cost_centers, clone_rfq=clone_rfq, display_attachment_name=display_attachment_name)
             rfq.submit_deadline = s_deadline
             rfq.delivery_deadline = d_deadline
         except:
             flash("Άκυρη ημερομηνία.", "danger")
-            return render_template("new_request.html", suppliers=suppliers, cost_centers=cost_centers, clone_rfq=clone_rfq)
+            return render_template("new_request.html", suppliers=suppliers, cost_centers=cost_centers, clone_rfq=clone_rfq, display_attachment_name=display_attachment_name)
         
         # Cost center
         cc_id = request.form.get("cost_center")
@@ -214,7 +237,7 @@ def new_request():
         return redirect(url_for('company.request_detail', req_id=rfq.id))
     
     suppliers_list = [(u.username, u.display_name) for u in suppliers]
-    return render_template("new_request.html", suppliers=suppliers_list, cost_centers=cost_centers, clone_rfq=clone_rfq)
+    return render_template("new_request.html", suppliers=suppliers_list, cost_centers=cost_centers, clone_rfq=clone_rfq, display_attachment_name=display_attachment_name)
 
 @company_bp.route("/requests/<int:req_id>")
 @require_roles("company", "chief")
@@ -332,7 +355,10 @@ def request_detail(req_id):
                            shipping_awards=shipping_awards, shipping_winning_bid_ids=shipping_winning_bid_ids,
                            awarded_summary=awarded_summary, grand_total_awarded=grand_total_awarded, 
                            initial_subtotal=initial_subtotal, receipts=receipts,
-                           bid_combo_totals=bid_combo_totals)
+                           bid_combo_totals=bid_combo_totals,
+                           can_approve_rfq=can_approve_rfq,
+                           phase_info=phase_info,
+                           display_attachment_name=display_attachment_name)
 
 @company_bp.route("/test/<int:req_id>")
 def test_request(req_id):
@@ -455,6 +481,10 @@ def cancel_request(req_id):
 def award_bids(req_id):
     """Award bids to selected suppliers"""
     rfq = RequestRFQ.query.get_or_404(req_id)
+
+    denied_response = _enforce_approval_rights_or_redirect(rfq)
+    if denied_response:
+        return denied_response
     
     # Get selected bid IDs
     selected_bid_ids = request.form.getlist('award[]')
@@ -576,6 +606,10 @@ def accept_bid(req_id, bid_id):
     """Chief accepts/awards a bid (winning bid)"""
     rfq = RequestRFQ.query.get_or_404(req_id)
     bid = Bid.query.get_or_404(bid_id)
+
+    denied_response = _enforce_approval_rights_or_redirect(rfq)
+    if denied_response:
+        return denied_response
     
     if bid.request_id != req_id:
         flash("Άκυρη προσφορά.", "danger")
@@ -620,6 +654,10 @@ def reject_bid(req_id, bid_id):
     """Chief rejects a bid"""
     rfq = RequestRFQ.query.get_or_404(req_id)
     bid = Bid.query.get_or_404(bid_id)
+
+    denied_response = _enforce_approval_rights_or_redirect(rfq)
+    if denied_response:
+        return denied_response
     
     if bid.request_id != req_id:
         flash("Άκυρη προσφορά.", "danger")
@@ -659,6 +697,10 @@ def reject_bid(req_id, bid_id):
 def award_item(req_id):
     """Award a specific line item to a bid line"""
     rfq = RequestRFQ.query.get_or_404(req_id)
+
+    denied_response = _enforce_approval_rights_or_redirect(rfq)
+    if denied_response:
+        return denied_response
     
     # Get form data
     request_item_id = request.form.get('request_item_id')
@@ -755,6 +797,10 @@ def award_item(req_id):
 def award_item_ajax(req_id):
     """Award a specific line item to a bid line (AJAX version - returns JSON)"""
     rfq = RequestRFQ.query.get_or_404(req_id)
+
+    denied_response = _enforce_approval_rights_or_json(rfq)
+    if denied_response:
+        return denied_response
     
     # Get form data
     request_item_id = request.form.get('request_item_id')
@@ -934,6 +980,13 @@ def get_award_data(req_id):
 def unaward_item(req_id):
     """Undo award for a specific line item"""
     rfq = RequestRFQ.query.get_or_404(req_id)
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        denied_response = _enforce_approval_rights_or_json(rfq)
+    else:
+        denied_response = _enforce_approval_rights_or_redirect(rfq)
+    if denied_response:
+        return denied_response
     
     # Get form data
     request_item_id = request.form.get('request_item_id')
@@ -975,6 +1028,10 @@ def unaward_item(req_id):
 def award_all_from_bid(req_id, bid_id):
     """Award all items from a specific bid"""
     rfq = RequestRFQ.query.get_or_404(req_id)
+
+    denied_response = _enforce_approval_rights_or_redirect(rfq)
+    if denied_response:
+        return denied_response
     
     bid = Bid.query.get(bid_id)
     if not bid or bid.request_id != req_id:
@@ -1018,6 +1075,10 @@ def award_all_from_bid(req_id, bid_id):
 def finalize_award(req_id):
     """Finalize award and close RFQ"""
     rfq = RequestRFQ.query.get_or_404(req_id)
+
+    denied_response = _enforce_approval_rights_or_redirect(rfq)
+    if denied_response:
+        return denied_response
     
     if rfq.status == RFQStatus.CLOSED or rfq.status == RFQStatus.RECEIVED:
         flash("Η ζήτηση έχει ήδη κλειστεί.", "warning")

@@ -27,26 +27,26 @@
     </div>
   </div>
 
-  <!-- Submitted Card -->
+  <!-- Pending Delivery Orders Card -->
   <div class="col-12 col-sm-6 col-lg-3">
     <div class="kpi-card accent-success">
-      <div class="kpi-card-title">Submitted</div>
-      <div class="kpi-card-value">{{ submitted_count }}</div>
+      <div class="kpi-card-title">Pending Delivery</div>
+      <div class="kpi-card-value">{{ full_awarded_count }}</div>
       <div class="d-flex align-items-center gap-2">
-        <i class="bi bi-send-check" style="font-size: 1.25rem; color: var(--color-success);"></i>
-        <span class="small" style="color: var(--color-text-secondary);">Επιτυχώς υποβληθείσες</span>
+        <i class="bi bi-award-fill" style="font-size: 1.25rem; color: var(--color-warning);"></i>
+        <span class="small" style="color: var(--color-text-secondary);">Ολόκληρες κερδισμένες παραγγελίες</span>
       </div>
     </div>
   </div>
 
-  <!-- Awards Card -->
+  <!-- Pending Delivery Items Card -->
   <div class="col-12 col-sm-6 col-lg-3">
     <div class="kpi-card accent-warning">
-      <div class="kpi-card-title">Accepted</div>
+      <div class="kpi-card-title">Item Pending Delivery</div>
       <div class="kpi-card-value">{{ awards_count }}</div>
       <div class="d-flex align-items-center gap-2">
         <i class="bi bi-trophy" style="font-size: 1.25rem; color: var(--color-warning);"></i>
-        <span class="small" style="color: var(--color-text-secondary);">Κερδισμένες παραγγελίες</span>
+        <span class="small" style="color: var(--color-text-secondary);">Συνολικά κερδισμένα είδη</span>
       </div>
     </div>
   </div>
@@ -96,35 +96,35 @@
           </div>
           <div class="filter-group">
             <label class="filter-item">
-              <input type="radio" name="status" value="all" {% if status_filter == 'all' %}checked{% endif %} class="filter-checkbox">
-              <span class="filter-label">All</span>
-            </label>
-            <label class="filter-item">
-              <input type="radio" name="status" value="open" {% if status_filter == 'open' %}checked{% endif %} class="filter-checkbox">
+              <input type="checkbox" name="status" value="open" {% if 'open' in status_filters %}checked{% endif %} class="filter-checkbox">
               <span class="filter-label">Open</span>
             </label>
             <label class="filter-item">
-              <input type="radio" name="status" value="submitted" {% if status_filter == 'submitted' %}checked{% endif %} class="filter-checkbox">
+              <input type="checkbox" name="status" value="submitted" {% if 'submitted' in status_filters %}checked{% endif %} class="filter-checkbox">
               <span class="filter-label">Submitted</span>
             </label>
             <label class="filter-item">
-              <input type="radio" name="status" value="accepted" {% if status_filter == 'accepted' %}checked{% endif %} class="filter-checkbox">
+              <input type="checkbox" name="status" value="accepted" {% if 'accepted' in status_filters %}checked{% endif %} class="filter-checkbox">
               <span class="filter-label">Accepted</span>
             </label>
             <label class="filter-item">
-              <input type="radio" name="status" value="rejected" {% if status_filter == 'rejected' %}checked{% endif %} class="filter-checkbox">
+              <input type="checkbox" name="status" value="pending_delivery" {% if 'pending_delivery' in status_filters %}checked{% endif %} class="filter-checkbox">
+              <span class="filter-label">Pending Delivery</span>
+            </label>
+            <label class="filter-item">
+              <input type="checkbox" name="status" value="rejected" {% if 'rejected' in status_filters %}checked{% endif %} class="filter-checkbox">
               <span class="filter-label">Rejected</span>
             </label>
             <label class="filter-item">
-              <input type="radio" name="status" value="reopen" {% if status_filter == 'reopen' %}checked{% endif %} class="filter-checkbox">
+              <input type="checkbox" name="status" value="reopen" {% if 'reopen' in status_filters %}checked{% endif %} class="filter-checkbox">
               <span class="filter-label">Reopen</span>
             </label>
             <label class="filter-item">
-              <input type="radio" name="status" value="no_bid" {% if status_filter == 'no_bid' %}checked{% endif %} class="filter-checkbox">
+              <input type="checkbox" name="status" value="no_bid" {% if 'no_bid' in status_filters %}checked{% endif %} class="filter-checkbox">
               <span class="filter-label">No bid</span>
             </label>
             <label class="filter-item">
-              <input type="radio" name="status" value="draft" {% if status_filter == 'draft' %}checked{% endif %} class="filter-checkbox">
+              <input type="checkbox" name="status" value="draft" {% if 'draft' in status_filters %}checked{% endif %} class="filter-checkbox">
               <span class="filter-label">Draft</span>
             </label>
           </div>
@@ -177,11 +177,8 @@
     <div class="mb-8">
       <div class="d-flex justify-content-between align-items-center mb-5">
         <h2 class="mb-0" style="color: var(--color-navy); font-size: var(--font-size-lg);">
-          <i class="bi bi-folder-open me-2" style="color: var(--color-navy);"></i>Open requests
+          <i class="bi bi-folder-open me-2" style="color: var(--color-navy);"></i>Requests
         </h2>
-        <a href="{{ url_for('supplier.history') }}" class="btn btn-secondary btn-sm">
-          <i class="bi bi-clock-history me-1"></i>Ιστορικό
-        </a>
       </div>
 
       {% if rfqs %}
@@ -222,8 +219,10 @@
                       <span class="badge bg-info text-dark">Reopen</span>
                     {% elif current_bid.status == 'submitted' %}
                       <span class="badge badge-success">Submitted</span>
+                    {% elif current_bid.status == 'accepted' and awarded_bid_ids and current_bid.id in awarded_bid_ids %}
+                      <span class="badge bg-success">Pending Delivery</span>
                     {% elif current_bid.status == 'accepted' %}
-                      <span class="badge bg-success">Accepted</span>
+                      <span class="badge badge-secondary">Accepted</span>
                     {% elif current_bid.status == 'rejected' %}
                       <span class="badge bg-danger">Rejected</span>
                     {% elif current_bid.status == 'draft' %}
@@ -232,7 +231,7 @@
                       <span class="badge badge-secondary">{{ get_status_display_name(current_bid.status) }}</span>
                     {% endif %}
                   {% else %}
-                    {% if rfq.status in ['closed', 'received'] %}
+                    {% if rfq.status in ['pending_delivery', 'received'] %}
                       <span class="badge badge-secondary">No bid</span>
                     {% else %}
                       <span class="badge bg-info text-dark">Open</span>
@@ -252,56 +251,10 @@
       </div>
       {% else %}
       <div class="alert alert-info" style="border-left: 4px solid var(--color-info); border-radius: var(--radius-lg);">
-        <i class="bi bi-info-circle me-2"></i>Δεν υπάρχουν ανοιχτές ζητήσεις αυτή τη στιγμή.
+        <i class="bi bi-info-circle me-2"></i>Δεν υπάρχουν ζητήσεις για τα επιλεγμένα φίλτρα.
       </div>
       {% endif %}
     </div>
-
-    <!-- Awarded RFQs Section -->
-    {% if awarded_rfqs %}
-    <div class="mb-8">
-      <h2 class="mb-5" style="color: var(--color-navy); font-size: var(--font-size-lg);">
-          <i class="bi bi-award me-2" style="color: var(--color-success);"></i>Accepted orders
-      </h2>
-
-      <div class="card shadow-md overflow-hidden" style="border: none; border-radius: var(--radius-lg);">
-        <div class="table-responsive">
-          <table class="table">
-            <thead>
-              <tr>
-                <th style="padding: var(--space-4);">Αριθμός</th>
-                <th>Τίτλος</th>
-                <th>Τόπος Παράδοσης</th>
-                <th>Κατάσταση</th>
-                <th style="text-align: right; padding-right: var(--space-4);">Ενέργειες</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for rfq in awarded_rfqs %}
-              <tr>
-                <td style="padding: var(--space-4);">
-                  <span class="fw-bold" style="color: var(--color-navy);">#{{ rfq.id }}</span>
-                </td>
-                <td style="padding: var(--space-4);">
-                  <span class="fw-semibold" style="color: var(--color-text-primary);">{{ rfq.title }}</span>
-                </td>
-                <td style="padding: var(--space-4); color: var(--color-text-secondary);">{{ rfq.delivery_location or '-' }}</td>
-                <td style="padding: var(--space-4);">
-                  <span class="badge badge-success">Ανατεθείσα</span>
-                </td>
-                <td style="text-align: right; padding-right: var(--space-4);">
-                  <a href="{{ url_for('supplier.bid', req_id=rfq.id) }}" class="btn btn-info btn-sm px-3">
-                    <i class="bi bi-eye me-1"></i>Παραγγελία
-                  </a>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    {% endif %}
   </div>
 </div>
 
@@ -318,8 +271,8 @@
     }
 
     // Auto-submit on status change
-    document.querySelectorAll('input[name="status"]').forEach(radio => {
-        radio.addEventListener('change', function() {
+    document.querySelectorAll('input[name="status"]').forEach(input => {
+      input.addEventListener('change', function() {
             showLoading();
         });
     });

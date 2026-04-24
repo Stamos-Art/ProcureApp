@@ -21,7 +21,8 @@
 </div>
 {% endif %}
 
-{% set can_modify = rfq.status not in ['closed', 'received', 'cancelled'] and (rfq.status != 'pending_final_approval' or session.get('role') == 'chief') %}
+{% set can_approve_actions = can_approve_rfq(rfq) %}
+{% set can_modify = can_approve_actions and rfq.status not in ['pending_delivery', 'received', 'cancelled'] and (rfq.status != 'pending_final_approval' or session.get('role') == 'chief') %}
 
 <div class="row mb-4 g-3">
     <div class="col-md-12">
@@ -159,17 +160,29 @@
                     </tr>
                 {% endif %}
                 
+                {% if shipping_awards %}
                 <tr class="table-info">
                     <td>-</td>
                     <td class="text-start fw-bold"><i class="bi bi-truck me-2"></i>Μεταφορικά / Έξοδα Αποστολής</td>
                     <td>υπηρεσία</td>
                     <td>1.00</td>
                     <td>
-                        {% if shipping_awards %}
-                            {% set sa = shipping_awards[0] %}
-                            {% set aw_bid_line = sa.bid_line if sa.bid_line else None %}
-                            {% if aw_bid_line %}
-                                <strong>{{ "%.2f"|format(aw_bid_line.unit_price) }} €</strong>
+                        {% set sa = shipping_awards[0] %}
+                        {% set aw_bid_line = sa.bid_line if sa.bid_line else None %}
+                        {% if aw_bid_line %}
+                            <strong>{{ "%.2f"|format(aw_bid_line.unit_price) }} €</strong>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set sa = shipping_awards[0] %}
+                        {% set aw_bid_line = sa.bid_line if sa.bid_line else None %}
+                        {% if aw_bid_line %}
+                            {% if aw_bid_line.discount_type == 'pct' and aw_bid_line.discount_pct and aw_bid_line.discount_pct > 0 %}
+                                <span class="text-danger">-{{ "%.2f"|format(aw_bid_line.discount_pct) }}%</span>
+                            {% elif aw_bid_line.discount_type == 'amt' and aw_bid_line.discount_amount and aw_bid_line.discount_amount > 0 %}
+                                <span class="text-danger">-{{ "%.2f"|format(aw_bid_line.discount_amount) }} €</span>
                             {% else %}
                                 -
                             {% endif %}
@@ -178,58 +191,27 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if shipping_awards %}
-                            {% set sa = shipping_awards[0] %}
-                            {% set aw_bid_line = sa.bid_line if sa.bid_line else None %}
-                            {% if aw_bid_line %}
-                                {% if aw_bid_line.discount_type == 'pct' and aw_bid_line.discount_pct and aw_bid_line.discount_pct > 0 %}
-                                    <span class="text-danger">-{{ "%.2f"|format(aw_bid_line.discount_pct) }}%</span>
-                                {% elif aw_bid_line.discount_type == 'amt' and aw_bid_line.discount_amount and aw_bid_line.discount_amount > 0 %}
-                                    <span class="text-danger">-{{ "%.2f"|format(aw_bid_line.discount_amount) }} €</span>
-                                {% else %}
-                                    -
-                                {% endif %}
-                            {% else %}
-                                -
-                            {% endif %}
+                        {% set sa = shipping_awards[0] %}
+                        {% set aw_bid_line = sa.bid_line if sa.bid_line else None %}
+                        {% if aw_bid_line %}
+                            <strong class="text-success">{{ "%.2f"|format(aw_bid_line.line_total) }} €</strong>
                         {% else %}
                             -
                         {% endif %}
                     </td>
                     <td>
-                        {% if shipping_awards %}
-                            {% set sa = shipping_awards[0] %}
-                            {% set aw_bid_line = sa.bid_line if sa.bid_line else None %}
-                            {% if aw_bid_line %}
-                                <strong class="text-success">{{ "%.2f"|format(aw_bid_line.line_total) }} €</strong>
-                            {% else %}
-                                -
-                            {% endif %}
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% set shipping_awarded = false %}
-                        {% if shipping_awards %}
-                            {% set shipping_awarded = true %}
-                        {% endif %}
-                        
-                        {% if shipping_awarded %}
-                            {% for sa in shipping_awards %}
-                                <div class="badge bg-success mb-1">Assigned to: {{ sa.supplier_name }}</div>
-                            {% endfor %}
-                        {% else %}
-                            <span class="text-muted small italic">Pending</span>
-                        {% endif %}
+                        {% for sa in shipping_awards %}
+                            <div class="badge bg-success mb-1">Assigned to: {{ sa.supplier_name }}</div>
+                        {% endfor %}
                     </td>
                 </tr>
+                {% endif %}
             </tbody>
         </table>
     </div>
 </div>
 
-{% if rfq.status in ['closed', 'received'] %}
+{% if rfq.status in ['pending_delivery', 'received'] %}
 <h5 class="mt-5 mb-3"><i class="bi bi-box-seam me-2"></i>Παραλαβή Υλικών</h5>
 <div class="card shadow-sm border-0 mb-5">
     <div class="card-body p-0">
@@ -277,7 +259,7 @@
                 </table>
             </div>
             
-            {% if rfq.status == 'closed' %}
+            {% if rfq.status == 'pending_delivery' %}
             <div class="p-3 bg-light border-top d-flex justify-content-between align-items-center">
                 <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Αποθηκεύστε τις ποσότητες σταδιακά ή οριστικοποιήστε την παραλαβή.</small>
                 <div class="d-flex gap-2">
@@ -457,7 +439,7 @@
                             Λεπτομέρειες
                         </button>
                         
-                        {% if session.get('role') in ['chief', 'company'] and rfq.status in ['open', 'pending_final_approval', 'returned_for_revision'] %}
+                        {% if session.get('role') in ['chief', 'company'] and can_approve_actions and rfq.status in ['open', 'pending_final_approval', 'returned_for_revision'] %}
                             {% if bid.status == 'accepted' %}
                             <form method="post" action="{{ url_for('company.award_all_from_bid', req_id=rfq.id, bid_id=bid.id) }}" class="d-inline">
                                 <button type="submit" class="btn btn-sm btn-success ms-2" title="Ανάθεση ολόκληρης της προσφοράς">
@@ -467,7 +449,7 @@
                             {% endif %}
                         {% endif %}
                         
-                        {% if session.get('role') in ['chief', 'company'] and rfq.status in ['open', 'pending_final_approval', 'returned_for_revision'] and bid.status == 'submitted' %}
+                        {% if session.get('role') in ['chief', 'company'] and can_approve_actions and rfq.status in ['open', 'pending_final_approval', 'returned_for_revision'] and bid.status == 'submitted' %}
                         <div class="btn-group btn-group-sm ms-2" role="group">
                             <form method="post" action="{{ url_for('company.accept_bid', req_id=rfq.id, bid_id=bid.id) }}" class="d-inline">
                                 <button type="submit" class="btn btn-success" title="Αποδοχή ως Νικητήρια Προσφορά">
@@ -669,7 +651,7 @@
 
 <div class="d-flex align-items-center gap-2 mt-5 mb-4 p-3 bg-white border rounded shadow-sm">
     {% if is_editable_by_current_user(rfq) or session.get('role') == 'chief' %}
-        {% if rfq.status not in ['closed', 'received', 'cancelled'] %}
+        {% if rfq.status not in ['pending_delivery', 'received', 'cancelled'] %}
         <a href="{{ url_for('company.edit_request', req_id=rfq.id) }}" class="btn btn-primary px-4 shadow-sm">
             <i class="bi bi-pencil-square me-1"></i> Επεξεργασία
         </a>
@@ -680,7 +662,7 @@
         <i class="bi bi-copy me-1"></i> Δημιουργία Αντιγράφου
     </a>
 
-    {% if (is_editable_by_current_user(rfq) or session.get('role') == 'chief') and rfq.status not in ['closed', 'received', 'cancelled'] %}
+    {% if (is_editable_by_current_user(rfq) or session.get('role') == 'chief') and rfq.status not in ['pending_delivery', 'received', 'cancelled'] %}
     <button type="button" class="btn btn-outline-danger px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#cancelModal">
         <i class="bi bi-trash3 me-1"></i> Ακύρωση Ζήτησης
     </button>
@@ -709,21 +691,25 @@
                 </button>
             {% endif %}
 
-        {% elif rfq.status not in ['closed', 'received', 'cancelled'] and awarded_summary %}
+        {% elif rfq.status not in ['pending_delivery', 'received', 'cancelled'] and awarded_summary %}
             {% if session.get('role') == 'chief' %}
                 <button type="button" class="btn btn-success px-4 shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#chiefeFinalizeSummaryModal">
                     <i class="bi bi-check2-all me-1"></i> Οριστική Ανάθεση & Κλείσιμο
                 </button>
-            {% else %}
+            {% elif can_approve_actions %}
                 <button type="button" class="btn btn-success px-4 shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#finalizeModal">
                     <i class="bi bi-check-circle-fill me-1"></i> Οριστική Ανάθεση
+                </button>
+            {% else %}
+                <button class="btn btn-secondary px-4 shadow-sm fw-bold" disabled title="Μόνο ο δημιουργός της ζήτησης μπορεί να εγκρίνει.">
+                    <i class="bi bi-lock me-1"></i> Χωρίς δικαίωμα έγκρισης
                 </button>
             {% endif %}
         {% endif %}
     </div>
 </div>
 
-{% if rfq.status not in ['closed', 'received', 'cancelled'] and awarded_summary and session.get('role') == 'chief' %}
+{% if rfq.status not in ['pending_delivery', 'received', 'cancelled'] and awarded_summary and session.get('role') == 'chief' %}
 <div class="modal fade" id="chiefeFinalizeSummaryModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0 shadow">
@@ -800,7 +786,7 @@
 </div>
 {% endif %}
 
-{% if rfq.status not in ['closed', 'received', 'cancelled'] and awarded_summary and session.get('role') != 'chief' %}
+{% if rfq.status not in ['pending_delivery', 'received', 'cancelled'] and awarded_summary and session.get('role') != 'chief' and can_approve_actions %}
 <div class="modal fade" id="finalizeModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0 shadow">
@@ -823,7 +809,7 @@
 </div>
 {% endif %}
 
-{% if rfq.status == 'closed' %}
+{% if rfq.status == 'pending_delivery' %}
 <div class="modal fade" id="receiptModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0 shadow">
@@ -899,7 +885,7 @@
 
 <!-- Bid Rejection Modals (one per bid) -->
 {% for bid in bids %}
-{% if session.get('role') in ['chief', 'company'] and rfq.status in ['open', 'pending_final_approval', 'returned_for_revision'] and bid.status == 'submitted' %}
+{% if session.get('role') in ['chief', 'company'] and can_approve_actions and rfq.status in ['open', 'pending_final_approval', 'returned_for_revision'] and bid.status == 'submitted' %}
 <div class="modal fade" id="rejectBidModal{{ bid.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0 shadow">
@@ -1070,7 +1056,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Update awarded summary via AJAX
-async function updateAwardedSummary(reqId) {
+async function updatePendingDeliverySummary(reqId) {
     try {
         const response = await fetch(`/company/requests/${reqId}/get-award-data`);
         const data = await response.json();
