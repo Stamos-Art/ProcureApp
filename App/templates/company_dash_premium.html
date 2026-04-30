@@ -275,7 +275,7 @@
         <div class="card-mini-kpi-icon">📋</div>
         <div class="card-mini-kpi-content">
             <h4>Ενεργές</h4>
-            <div class="card-mini-kpi-value">{{ rfqs|selectattr('status', 'in', ['open', 'pending'])|list|length }}</div>
+            <div class="card-mini-kpi-value">{{ totals.active if totals is defined else '-' }}</div>
         </div>
     </div>
     
@@ -284,7 +284,7 @@
         <div class="card-mini-kpi-icon">⏳</div>
         <div class="card-mini-kpi-content">
             <h4>Σε Αναμονή</h4>
-            <div class="card-mini-kpi-value">{{ rfqs|selectattr('status', '==', 'pending')|list|length }}</div>
+            <div class="card-mini-kpi-value">{{ totals.pending if totals is defined else '-' }}</div>
         </div>
     </div>
     
@@ -293,7 +293,7 @@
         <div class="card-mini-kpi-icon">✅</div>
         <div class="card-mini-kpi-content">
             <h4>Ολοκληρωμένες</h4>
-            <div class="card-mini-kpi-value">{{ rfqs|selectattr('status', '==', 'pending_delivery')|list|length }}</div>
+            <div class="card-mini-kpi-value">{{ totals.received if totals is defined else '-' }}</div>
         </div>
     </div>
     
@@ -302,7 +302,7 @@
         <div class="card-mini-kpi-icon">❌</div>
         <div class="card-mini-kpi-content">
             <h4>Ακυρωμένες</h4>
-            <div class="card-mini-kpi-value">{{ rfqs|selectattr('status', '==', 'cancelled')|list|length }}</div>
+            <div class="card-mini-kpi-value">{{ totals.cancelled if totals is defined else '-' }}</div>
         </div>
     </div>
 </div>
@@ -403,19 +403,19 @@
         {% if total_pages > 1 %}
             <div class="pagination">
                 {% if page > 1 %}
-                    <a href="{{ url_for('company.dashboard', page=page-1, phase=phase, q=q) }}">← Προηγ.</a>
+                    <a href="{{ url_for('company.dashboard', page=page-1, phase=phase_query, q=q, cost_center=cost_center_query, period=period_query) }}">← Προηγ.</a>
                 {% endif %}
                 
                 {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
                     {% if p == page %}
                         <span class="active">{{ p }}</span>
                     {% else %}
-                        <a href="{{ url_for('company.dashboard', page=p, phase=phase, q=q) }}">{{ p }}</a>
+                        <a href="{{ url_for('company.dashboard', page=p, phase=phase_query, q=q, cost_center=cost_center_query, period=period_query) }}">{{ p }}</a>
                     {% endif %}
                 {% endfor %}
                 
                 {% if page < total_pages %}
-                    <a href="{{ url_for('company.dashboard', page=page+1, phase=phase, q=q) }}">Επόμ. →</a>
+                    <a href="{{ url_for('company.dashboard', page=page+1, phase=phase_query, q=q, cost_center=cost_center_query, period=period_query) }}">Επόμ. →</a>
                 {% endif %}
             </div>
         {% endif %}

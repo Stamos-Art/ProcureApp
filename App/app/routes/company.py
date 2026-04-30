@@ -66,7 +66,7 @@ def dashboard():
     page = request.args.get('page', 1, type=int)
     per_page = 10
     q = (request.args.get("q") or "").strip()
-    phase_filters = [v for v in _parse_multi_values(request.args, 'phase') if v in {'awaiting_approval', 'returned_for_revision', 'awaiting_offers', 'offers_received', 'pending_final_approval', 'awarded', 'received', 'denied', 'cancelled'}]
+    phase_filters = [v for v in _parse_multi_values(request.args, 'phase') if v in {'draft', 'awaiting_approval', 'returned_for_revision', 'awaiting_offers', 'offers_received', 'pending_final_approval', 'awarded', 'received', 'denied', 'cancelled'}]
     cost_center_filters = [v for v in _parse_multi_values(request.args, 'cost_center') if v.isdigit()]
     period_filters = [v for v in _parse_multi_values(request.args, 'period') if v in {'week', 'month', 'quarter', 'older'}]
     phase_query = ','.join(phase_filters)
@@ -121,6 +121,15 @@ def dashboard():
     start_idx = (page - 1) * per_page
     paginated_rfqs = filtered_rfqs[start_idx : start_idx + per_page]
     cost_centers = CostCenter.query.filter_by(is_active=True).order_by(CostCenter.name.asc()).all()
+
+    # Totals for KPI cards (always from full unfiltered dataset)
+    all_rfqs_unfiltered = RequestRFQ.query.all()
+    totals = {
+        'active':    sum(1 for r in all_rfqs_unfiltered if r.status in ['open', 'pending', 'pending_final_approval']),
+        'pending':   sum(1 for r in all_rfqs_unfiltered if r.status == 'pending'),
+        'received':  sum(1 for r in all_rfqs_unfiltered if r.status in ['received', 'closed']),
+        'cancelled': sum(1 for r in all_rfqs_unfiltered if r.status == 'cancelled'),
+    }
     
     return render_template("company_dash.html",
                          rfqs=paginated_rfqs,
@@ -136,7 +145,8 @@ def dashboard():
                          period_query=period_query,
                          phase_map=phase_map,
                          page=page,
-                         total_pages=total_pages)
+                         total_pages=total_pages,
+                         totals=totals)
 
 @company_bp.route("/requests/new", methods=["GET", "POST"])
 @require_roles("company", "chief")
@@ -159,13 +169,16 @@ def new_request():
             flash("Ο τίτλος είναι υποχρεωτικός.", "danger")
             return render_template("new_request.html", suppliers=suppliers, cost_centers=cost_centers, clone_rfq=clone_rfq, display_attachment_name=display_attachment_name)
         
+        action = request.form.get("action")
+        status = RFQStatus.DRAFT if action == "draft" else RFQStatus.PENDING
+        
         # Create RFQ
         rfq = RequestRFQ(
             title=title,
             description=request.form.get("details", ""),
             created_by=session.get("name"),
             created_at=datetime.utcnow(),
-            status=RFQStatus.PENDING
+            status=status
         )
         
         # Set deadlines
@@ -433,7 +446,11 @@ def edit_request(req_id):
                 qty = 1.0
             db.session.add(RequestItem(request_id=rfq.id, description=desc, unit=unit, quantity=qty))
         
-        if rfq.status in [RFQStatus.DENIED, RFQStatus.RETURNED_FOR_REVISION]:
+        action = request.form.get("action")
+        if rfq.status == RFQStatus.DRAFT:
+            if action == "submit":
+                rfq.status = RFQStatus.PENDING
+        elif rfq.status in [RFQStatus.DENIED, RFQStatus.RETURNED_FOR_REVISION]:
             rfq.status = RFQStatus.PENDING
             rfq.denial_reason = None
         
@@ -575,11 +592,11 @@ def award_bids(req_id):
     
     if grand_total_awarded > user_limit and session.get('role') == 'company':
         rfq.status = RFQStatus.PENDING_FINAL_APPROVAL
-        log_action(rfq.id, f"Awaiting budget approval. Total: {grand_total_awarded}€, Limit: {user_limit}€")
-        notify_role('chief', f"RFQ #{rfq.id} requires budget approval (over approval limit).", 
+        log_action(rfq.id, f"Αναμονή οικονομικής έγκρισης. Σύνολο: {grand_total_awarded}€, Όριο: {user_limit}€")
+        notify_role('chief', f"Η ζήτηση #{rfq.id} απαιτεί οικονομική έγκριση (υπερβαίνει όριο έγκρισης).", 
                    url_for('company.request_detail', req_id=rfq.id))
         db.session.commit()
-        flash("Award total exceeds your approval limit. Sent to Chief for budget approval.", "info")
+        flash("Η ανάθεση υπερβαίνει το όριο εγκριτικών αρμοδιοτήτών σας. Απεστάλθη στον Διευθυντή για οικονομική έγκριση.", "info")
     else:
         rfq.status = RFQStatus.CLOSED
         rfq.award_date = datetime.utcnow()

@@ -1145,4 +1145,100 @@ function showAlert(message, type = 'info') {
 
 </script>
 
+<script>
+/* ══════════════════════════════════════════════
+   CONFIRM DIALOGS  — company_request_detail
+   Uses the global showConfirm() from base_premium.html
+   ══════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function() {
+
+    /* ── 1. APPROVE (chief) ── */
+    document.querySelectorAll('form[action*="admin.approve"] button[type="submit"]').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = this.closest('form');
+            showConfirm({
+                title: 'Έγκριση Ζήτησης',
+                msg:   'Θέλετε να εγκρίνετε αυτή τη ζήτηση και να τη στείλετε στους προμηθευτές;',
+                icon:  '✅',
+                danger: false,
+                onConfirm: () => form.submit()
+            });
+        });
+    });
+
+    /* ── 2. ACCEPT BID ── */
+    document.querySelectorAll('form[action*="accept_bid"] button[type="submit"]').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = this.closest('form');
+            showConfirm({
+                title:  'Αποδοχή Προσφοράς',
+                msg:    'Επιβεβαιώνετε ότι θέλετε να αποδεχθείτε αυτή την προσφορά ως νικητήρια;',
+                icon:   '🏆',
+                danger: false,
+                onConfirm: () => form.submit()
+            });
+        });
+    });
+
+    /* ── 3. AWARD ALL FROM BID ── */
+    document.querySelectorAll('form[action*="award_all_from_bid"] button[type="submit"]').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = this.closest('form');
+            showConfirm({
+                title:  'Ανάθεση Ολόκληρης Προσφοράς',
+                msg:    'Θέλετε να αναθέσετε όλα τα είδη αυτής της προσφοράς;',
+                icon:   '📋',
+                danger: false,
+                onConfirm: () => form.submit()
+            });
+        });
+    });
+
+    /* ── 4. APPROVE FINAL (Budget Approval & Close) ── */
+    document.querySelectorAll('form[action*="approve_final"] button[type="submit"]').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = this.closest('form');
+            showConfirm({
+                title:  'Οριστική Οικονομική Έγκριση',
+                msg:    'Η ενέργεια αυτή είναι μη αναστρέψιμη. Θέλετε να εγκρίνετε οριστικά και να κλείσετε τη ζήτηση;',
+                icon:   '🔒',
+                danger: true,
+                onConfirm: () => form.submit()
+            });
+        });
+    });
+
+    /* ── 5. CONFIRM RECEIPT (Mark as Received) ── */
+    document.querySelectorAll('#receiptModal .btn-success').forEach(btn => {
+        // already inside a modal so the confirm is the modal itself — no extra dialog needed
+        // but intercept the "finalize" click inside the receipt modal for extra safety
+        btn.addEventListener('click', function() {
+            // The button already calls finalizeReceiptInput + form.submit()
+            // Wrap with showConfirm only if it has the direct onclick
+            if (!this.dataset.confirmAdded) {
+                this.dataset.confirmAdded = '1';
+                const orig = this.getAttribute('onclick');
+                if (orig) {
+                    this.removeAttribute('onclick');
+                    this.addEventListener('click', function innerClick(ev) {
+                        ev.stopImmediatePropagation();
+                        showConfirm({
+                            title:  'Επιβεβαίωση Παραλαβής',
+                            msg:    'Επιβεβαιώνετε ότι τα είδη παραλήφθηκαν;',
+                            icon:   '📦',
+                            danger: false,
+                            onConfirm: () => { eval(orig); }
+                        });
+                    }, { once: true });
+                }
+            }
+        });
+    });
+});
+</script>
+
 {% endblock %}

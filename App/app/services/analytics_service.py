@@ -154,7 +154,7 @@ def calculate_risk_data(rfq_query, award_query):
     all_awards = award_query.all()
     
     # Defect rate
-    defective = ItemReceipt.query.filter(ItemReceipt.defect_found == True).count()
+    defective = ItemReceipt.query.filter(ItemReceipt.defect_count > 0).count()
     total_receipts = ItemReceipt.query.count()
     defect_rate = (defective / total_receipts * 100) if total_receipts > 0 else 0
     

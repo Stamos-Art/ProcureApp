@@ -219,7 +219,7 @@ def approve_final(req_id):
         return redirect(url_for('company.request_detail', req_id=req_id))
     
     rfq.award_date = datetime.utcnow()
-    log_action(req_id, "Budget approval granted by Chief.")
+    log_action(req_id, "Οικονομική έγκριση ολοκληρώθηκε από τον Διευθυντή.")
     
     # Notify winners
     awards = ItemAward.query.filter_by(request_id=req_id).all()
@@ -231,7 +231,7 @@ def approve_final(req_id):
                        url_for('supplier.bid', req_id=req_id))
     
     db.session.commit()
-    flash("Budget approval completed.", "success")
+    flash("Η οικονομική έγκριση ολοκληρώθηκε επιτυχώς.", "success")
     return redirect(url_for('company.request_detail', req_id=req_id))
 
 # ============= COST CENTERS MANAGEMENT =============
@@ -308,7 +308,7 @@ def cost_center_edit(cc_id):
     cc.project_manager = request.form.get("project_manager", "")
     cc.receiving_manager = request.form.get("receiving_manager", "")
     cc.phone = request.form.get("phone", "")
-    
+
     db.session.commit()
     flash("Το έργο ενημερώθηκε.", "success")
     return redirect(url_for('admin.cost_centers'))
@@ -320,7 +320,7 @@ def toggle_cost_center(cc_id):
     cc = CostCenter.query.get_or_404(cc_id)
     cc.is_active = not cc.is_active
     db.session.commit()
-    
+
     status = "ενεργοποιήθηκε" if cc.is_active else "απενεργοποιήθηκε"
     flash(f"Το έργο {status}.", "success")
     return redirect(url_for('admin.cost_centers'))
@@ -331,93 +331,84 @@ def toggle_cost_center(cc_id):
 @require_role("chief")
 def analytics():
     """Chief analytics dashboard"""
-    
+    from collections import defaultdict
+
     # Date filters
     start_date_str = request.args.get('start_date', '')
     end_date_str = request.args.get('end_date', '')
-    
-    # Additional filters
-    supplier_filter = request.args.get('supplier', '')
-    cost_center_filter = request.args.get('cost_center', '')
-    status_filter = request.args.get('status', '')
-    price_min = request.args.get('price_min', '')
-    price_max = request.args.get('price_max', '')
-    
+
     # Base queries
     rfq_query = RequestRFQ.query
     award_query = ItemAward.query.join(Bid).join(RequestRFQ, ItemAward.request_id == RequestRFQ.id)
-    
-    # Apply filters
+
+    # Apply date filters
     if start_date_str:
         try:
             dt_start = datetime.strptime(start_date_str, '%Y-%m-%d')
             rfq_query = rfq_query.filter(RequestRFQ.created_at >= dt_start)
             award_query = award_query.filter(ItemAward.created_at >= dt_start)
-        except:
+        except Exception:
             pass
-    
+
     if end_date_str:
         try:
             dt_end = datetime.strptime(end_date_str, '%Y-%m-%d')
             rfq_query = rfq_query.filter(RequestRFQ.created_at <= dt_end)
             award_query = award_query.filter(ItemAward.created_at <= dt_end)
-        except:
+        except Exception:
             pass
-    
-    if supplier_filter:
-        award_query = award_query.filter(ItemAward.supplier_name == supplier_filter)
-    
-    if cost_center_filter:
-        award_query = award_query.filter(RequestRFQ.cost_center_id == int(cost_center_filter)) \
-            if cost_center_filter.isdigit() else award_query
-    
-    if status_filter:
-        rfq_query = rfq_query.filter(RequestRFQ.status == status_filter)
-        award_query = award_query.filter(RequestRFQ.status == status_filter)
-    
-    if price_min:
-        try:
-            award_query = award_query.filter(ItemAward.line_total >= float(price_min))
-        except:
-            pass
-    
-    if price_max:
-        try:
-            award_query = award_query.filter(ItemAward.line_total <= float(price_max))
-        except:
-            pass
-    
-    # Calculate KPIs
+
     all_rfqs = rfq_query.all()
     all_awards = award_query.all()
-    
-    total_spend = sum((aw.line_total or 0) for aw in all_awards)
+
+    # ---- KPIs ----
+    total_spend = float(sum((aw.line_total or 0) for aw in all_awards))
     pending_approvals = sum(1 for r in all_rfqs if r.status in [RFQStatus.PENDING, RFQStatus.PENDING_FINAL_APPROVAL])
     active_requests = sum(1 for r in all_rfqs if r.status in [RFQStatus.PENDING, RFQStatus.OPEN, RFQStatus.PENDING_FINAL_APPROVAL])
-    
-    # Get analytics data
-    cost_data = calculate_costs_data(rfq_query, award_query)
+
+    # Avg lead time (approval days)
     timeline_data = calculate_timeline_data(rfq_query)
-    risk_data = calculate_risk_data(rfq_query, award_query)
-    suppliers = calculate_suppliers_data(award_query)
-    
-    # Get detailed lists
-    detailed_awards = get_detailed_awards_list(award_query)
+    avg_lead_time = timeline_data.get('avg_approval_days', 0)
+
+    # ---- Chart: Spend Trend (by month) ----
+    trend_by_month = defaultdict(float)
+    for aw in all_awards:
+        if aw.created_at:
+            month = aw.created_at.strftime('%b %Y')
+            trend_by_month[month] += float(aw.line_total or 0)
+    sorted_months = sorted(trend_by_month.keys(),
+                           key=lambda m: datetime.strptime(m, '%b %Y'))
+    trend_labels = sorted_months
+    trend_values = [round(trend_by_month[m], 2) for m in sorted_months]
+
+    # ---- Chart: Cost Center breakdown ----
+    cc_summary = get_cost_center_summary(award_query)
+    cc_labels = [item[0] for item in cc_summary]
+    cc_values = [round(item[1]['total'], 2) for item in cc_summary]
+
+    # ---- Chart: Top 5 Suppliers ----
     supplier_summary = get_supplier_costs_summary(award_query)
-    cost_center_summary = get_cost_center_summary(award_query)
-    price_trends = get_price_trends_by_supplier(award_query)
-    
-    return render_template("chief_analytics.html",
-                         total_spend=total_spend,
-                         pending_approvals=pending_approvals,
-                         active_requests=active_requests,
-                         cost_data=cost_data,
-                         timeline_data=timeline_data,
-                         risk_data=risk_data,
-                         suppliers=suppliers,
-                         detailed_awards=detailed_awards,
-                         supplier_summary=supplier_summary,
-                         cost_center_summary=cost_center_summary,
-                         price_trends=price_trends,
-                         start_date=start_date_str,
-                         end_date=end_date_str)
+    top5 = supplier_summary[:5]
+    sup_labels = [item[0] for item in top5]
+    sup_values = [round(item[1]['total'], 2) for item in top5]
+
+    # ---- Build unified data dict for template ----
+    data = {
+        'kpis': {
+            'spend': total_spend,
+            'active': active_requests,
+            'pending': pending_approvals,
+            'lead_time': avg_lead_time,
+        },
+        'charts': {
+            'trend': {'labels': trend_labels, 'values': trend_values},
+            'cc':    {'labels': cc_labels,    'values': cc_values},
+            'sups':  {'labels': sup_labels,   'values': sup_values},
+        },
+        'filters': {
+            'start': start_date_str,
+            'end':   end_date_str,
+        }
+    }
+
+    return render_template("chief_analytics.html", data=data)

@@ -30,7 +30,7 @@ def is_editable_by_current_user(rfq) -> bool:
     """Check if current user can edit the RFQ"""
     if session.get("name") != rfq.created_by:
         return False
-    return rfq.status in [RFQStatus.PENDING, RFQStatus.RETURNED_FOR_REVISION]
+    return rfq.status in [RFQStatus.PENDING, RFQStatus.RETURNED_FOR_REVISION, RFQStatus.DRAFT]
 
 
 def can_approve_rfq(rfq) -> bool:
@@ -67,60 +67,71 @@ def phase_info(rfq):
     """Get phase information including label, badge, and icon"""
     key = get_phase_key(rfq)
     mapping = {
+        "draft": {
+            "label": "Πρόχειρο",
+            "badge": "badge bg-secondary",
+            "icon": "bi-file-earmark-text"
+        },
         "awaiting_approval": {
-            "label": "Pending approval",
+            "label": "Αναμένει έγκριση",
             "badge": "badge bg-warning text-dark",
             "icon": "bi-hourglass-split"
         },
         "pending_final_approval": {
-            "label": "Awaiting budget approval",
+            "label": "Αναμένει οικονομική έγκριση",
             "badge": "badge bg-danger",
             "icon": "bi-shield-lock"
         },
         "returned_for_revision": {
-            "label": "Returned for revision",
+            "label": "Επέστρεψε για αναθεώρηση",
             "badge": "badge bg-warning text-dark",
             "icon": "bi-arrow-return-left"
         },
         "awaiting_offers": {
-            "label": "Awaiting offers",
+            "label": "Αναμένει προσφορές",
             "badge": "badge bg-info text-dark",
             "icon": "bi-inbox"
         },
         "offers_received": {
-            "label": "Offers received",
+            "label": "Λήφθηκαν προσφορές",
             "badge": "badge bg-primary",
             "icon": "bi-envelope-check"
         },
         "awarded": {
-            "label": "Awarded",
+            "label": "Κατακυρώθηκε",
             "badge": "badge bg-success",
             "icon": "bi-trophy"
         },
+        "pending_delivery": {
+            "label": "Αναμένει παράδοση",
+            "badge": "badge bg-secondary",
+            "icon": "bi-truck"
+        },
         "received": {
-            "label": "Received",
+            "label": "Παραλήφθηκε",
             "badge": "badge bg-success",
             "icon": "bi-box-seam"
         },
         "denied": {
-            "label": "Denied",
+            "label": "Απορρίφθηκε",
             "badge": "badge bg-danger",
             "icon": "bi-x-circle"
         },
         "closed": {
-            "label": "Closed",
+            "label": "Κλειστό",
             "badge": "badge bg-secondary",
             "icon": "bi-door-closed"
         },
         "cancelled": {
-            "label": "Cancelled",
+            "label": "Ακυρώθηκε",
             "badge": "badge bg-dark",
             "icon": "bi-slash-circle"
         },
     }
-    info = mapping.get(key, {"label": key.title(), "badge": "badge bg-secondary", "icon": "bi-circle"})
+    info = mapping.get(key, {"label": key.replace("_", " ").title(), "badge": "badge bg-secondary", "icon": "bi-circle"})
     info["key"] = key
     return info
+
 
 # ============ NOTIFICATION/LOGGING HELPERS ============
 

@@ -48,9 +48,13 @@
                         
                         <form method="post" action="{{ url_for('admin.toggle_cost_center', cc_id=cc.id) }}" class="d-inline">
                             {% if cc.is_active %}
-                            <button class="btn btn-sm btn-outline-danger" title="Απενεργοποίηση"><i class="bi bi-pause-fill"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" title="Απενεργοποίηση"
+                                onclick="return confirm('Σίγουρα θέλετε να απενεργοποιήσετε το έργο &quot;{{ cc.name }}&quot;; Δεν θα είναι διαθέσιμο σε νέες ζητήσεις.')"
+                            ><i class="bi bi-pause-fill"></i></button>
                             {% else %}
-                            <button class="btn btn-sm btn-outline-success" title="Ενεργοποίηση"><i class="bi bi-play-fill"></i></button>
+                            <button class="btn btn-sm btn-outline-success" title="Ενεργοποίηση"
+                                onclick="return confirm('Θέλετε να ενεργοποιήσετε ξανά το έργο &quot;{{ cc.name }}&quot;;')"
+                            ><i class="bi bi-play-fill"></i></button>
                             {% endif %}
                         </form>
                     </td>

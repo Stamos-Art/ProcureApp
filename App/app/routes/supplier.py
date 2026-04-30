@@ -223,7 +223,7 @@ def dashboard():
             RequestRFQ.description.ilike(like)
         ))
 
-    all_rfqs = qry.order_by(RequestRFQ.created_at.desc()).all()
+    all_rfqs = qry.order_by(RequestRFQ.submit_deadline.asc()).all()
 
     supplier_bids = Bid.query.filter_by(
         supplier_id=supplier_user.id if supplier_user else None

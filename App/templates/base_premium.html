@@ -56,7 +56,7 @@
             text-decoration: none;
             color: white;
             flex-shrink: 0;
-            transition: all var(--duration-200) var(--ease-in-out));
+            transition: all var(--duration-200) var(--ease-in-out);
         }
         
         .navbar-brand:hover {
@@ -95,7 +95,7 @@
             text-decoration: none;
             padding: var(--space-2) var(--space-3);
             border-radius: var(--radius-md);
-            transition: all var(--duration-200) var(--ease-in-out));
+            transition: all var(--duration-200) var(--ease-in-out);
             position: relative;
             font-weight: var(--font-medium);
             display: flex;
@@ -168,7 +168,7 @@
             color: white;
             font-size: var(--text-lg);
             cursor: pointer;
-            transition: transform var(--duration-200) var(--ease-in-out));
+            transition: transform var(--duration-200) var(--ease-in-out);
             position: relative;
             padding: var(--space-1);
         }
@@ -210,7 +210,7 @@
             align-items: center;
             gap: var(--space-2);
             cursor: pointer;
-            transition: all var(--duration-200) var(--ease-in-out));
+            transition: all var(--duration-200) var(--ease-in-out);
         }
         
         .user-btn:hover {
@@ -248,13 +248,12 @@
             opacity: 0;
             visibility: hidden;
             transform: translateY(-10px);
-            transition: all var(--duration-200) var(--ease-in-out));
+            transition: all var(--duration-200) var(--ease-in-out);
             z-index: var(--z-dropdown);
             border: 1px solid var(--border-color);
         }
         
-        .user-menu:hover .dropdown-menu,
-        .dropdown-menu:hover {
+        .user-menu.open .dropdown-menu {
             opacity: 1;
             visibility: visible;
             transform: translateY(0);
@@ -267,7 +266,7 @@
             padding: var(--space-3) var(--space-4);
             color: var(--text-primary);
             text-decoration: none;
-            transition: all var(--duration-150) var(--ease-in-out));
+            transition: all var(--duration-150) var(--ease-in-out);
             border-bottom: 1px solid var(--border-color);
             font-size: var(--text-sm);
             font-weight: var(--font-medium);
@@ -398,7 +397,7 @@
             color: var(--text-secondary);
             text-decoration: none;
             font-size: var(--text-sm);
-            transition: color var(--duration-200) var(--ease-in-out));
+            transition: color var(--duration-200) var(--ease-in-out);
         }
         
         .footer-links a:hover {
@@ -414,7 +413,157 @@
         }
     </style>
     <link href="{{ url_for('static', filename='css/dashboard-unified.css') }}" rel="stylesheet">
-    
+
+    <style>
+        /* ── NOTIFICATIONS PANEL ── */
+        .notif-panel {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: -60px;
+            width: 340px;
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-xl);
+            border: 1px solid var(--border-color);
+            z-index: var(--z-dropdown);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: all var(--duration-200) var(--ease-in-out);
+        }
+        .notification-bell.open .notif-panel {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .notif-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-3) var(--space-4);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .notif-panel-header h6 {
+            margin: 0;
+            font-weight: var(--font-semibold);
+            color: var(--text-primary);
+            font-size: var(--text-sm);
+        }
+        .notif-panel-header .mark-all-btn {
+            font-size: var(--text-xs);
+            color: var(--color-primary-blue);
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 0;
+        }
+        .notif-item {
+            display: flex;
+            gap: var(--space-3);
+            padding: var(--space-3) var(--space-4);
+            border-bottom: 1px solid var(--border-color);
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: background var(--duration-150) var(--ease-in-out);
+        }
+        .notif-item:hover { background: var(--bg-secondary); }
+        .notif-item.unread { background: rgba(29, 95, 174, 0.04); }
+        .notif-item .notif-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--color-primary-blue);
+            flex-shrink: 0;
+            margin-top: 6px;
+        }
+        .notif-item .notif-read-dot {
+            width: 8px; height: 8px;
+            flex-shrink: 0;
+            margin-top: 6px;
+        }
+        .notif-item p {
+            margin: 0 0 2px 0;
+            font-size: var(--text-sm);
+            line-height: 1.4;
+        }
+        .notif-item small { color: var(--text-secondary); font-size: var(--text-xs); }
+        .notif-panel-footer {
+            padding: var(--space-3);
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+        }
+        .notif-panel-footer a {
+            font-size: var(--text-sm);
+            color: var(--color-primary-blue);
+            text-decoration: none;
+            font-weight: var(--font-medium);
+        }
+        .notif-empty {
+            padding: var(--space-6);
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: var(--text-sm);
+        }
+
+        /* ── BREADCRUMB ── */
+        .breadcrumb-nav {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: var(--space-4);
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+        }
+        .breadcrumb-nav a {
+            color: var(--color-primary-blue);
+            text-decoration: none;
+        }
+        .breadcrumb-nav a:hover { text-decoration: underline; }
+        .breadcrumb-nav .sep { opacity: 0.4; }
+        .breadcrumb-nav .current { color: var(--text-primary); font-weight: var(--font-medium); }
+
+        /* ── CONFIRM MODAL ── */
+        .confirm-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 9998;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .confirm-overlay.active { display: flex; }
+        .confirm-box {
+            background: white;
+            border-radius: var(--radius-xl);
+            padding: var(--space-8);
+            max-width: 420px;
+            width: 90%;
+            box-shadow: var(--shadow-xl);
+            animation: slideDown var(--duration-200) var(--ease-out);
+            text-align: center;
+        }
+        .confirm-box .confirm-icon {
+            font-size: 2.5rem;
+            margin-bottom: var(--space-4);
+            display: block;
+        }
+        .confirm-box h5 {
+            margin: 0 0 var(--space-2) 0;
+            font-size: var(--text-lg);
+            color: var(--text-primary);
+        }
+        .confirm-box p {
+            margin: 0 0 var(--space-6) 0;
+            color: var(--text-secondary);
+            font-size: var(--text-sm);
+        }
+        .confirm-actions {
+            display: flex;
+            gap: var(--space-3);
+            justify-content: center;
+        }
+    </style>
+
     {% block extra_css %}{% endblock %}
 </head>
 <body class="dashboard-unified">
@@ -487,47 +636,77 @@
             
             <!-- Right Side Controls -->
             <div class="navbar-controls">
-                <!-- Quick Search (Optional) -->
-                <div class="search-bar d-none d-md-flex">
+                <!-- Quick Search -->
+                <form class="search-bar d-none d-md-flex" method="GET"
+                      action="{% if session.get('role') == 'supplier' %}{{ url_for('supplier.dashboard') }}{% else %}{{ url_for('company.dashboard') }}{% endif %}">
                     <i class="bi bi-search"></i>
-                    <input type="text" placeholder="Γρήγορη αναζήτηση...">
-                </div>
+                    <input type="text" name="q" placeholder="Γρήγορη αναζήτηση..."
+                           value="{{ request.args.get('q', '') }}"
+                           id="navbar-search-input">
+                </form>
                 
                 <!-- Notifications -->
-                <div class="notification-bell">
-                    <button class="bell-btn" title="Ειδοποιήσεις">
+                <div class="notification-bell" id="notifBell">
+                    <button class="bell-btn" id="bellBtn" title="Ειδοποιήσεις" aria-expanded="false">
                         <i class="bi bi-bell-fill"></i>
-                        {% if session.get('unread_notifications', 0) > 0 %}
-                            <span class="notification-badge">{{ session.get('unread_notifications', 0) }}</span>
+                        {% if unread_notifs %}
+                            <span class="notification-badge">{{ unread_notifs|length }}</span>
                         {% endif %}
                     </button>
+
+                    <!-- Notifications Panel -->
+                    <div class="notif-panel" id="notifPanel" role="dialog" aria-label="Ειδοποιήσεις">
+                        <div class="notif-panel-header">
+                            <h6><i class="bi bi-bell me-2"></i>Ειδοποιήσεις</h6>
+                            {% if unread_notifs %}
+                            <form method="POST" action="{{ url_for('main.read_all_notifications') }}" style="margin:0">
+                                <button type="submit" class="mark-all-btn">Σήμανση όλων ως αναγνωσμένα</button>
+                            </form>
+                            {% endif %}
+                        </div>
+
+                        {% set all_notifs = unread_notifs[:5] %}
+                        {% if all_notifs %}
+                            {% for n in all_notifs %}
+                            <a href="{{ url_for('main.read_notification', notif_id=n.id) }}"
+                               class="notif-item unread">
+                                <span class="notif-dot"></span>
+                                <div>
+                                    <p>{{ n.message }}</p>
+                                    <small>{{ n.created_at.strftime('%d/%m %H:%M') if n.created_at else '' }}</small>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        {% else %}
+                            <div class="notif-empty">
+                                <i class="bi bi-check-circle" style="font-size:1.5rem; display:block; margin-bottom:8px; opacity:.4"></i>
+                                Δεν υπάρχουν νέες ειδοποιήσεις
+                            </div>
+                        {% endif %}
+
+                        <div class="notif-panel-footer">
+                            <a href="{{ url_for('company.dashboard') }}">Εμφάνιση όλων</a>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- User Menu -->
-                <div class="user-menu">
-                    <button class="user-btn" title="Μενού Χρήστη">
+                <div class="user-menu" id="userMenu">
+                    <button class="user-btn" id="userMenuBtn" title="Μενού Χρήστη" aria-expanded="false">
                         <div class="user-avatar">
                             {{ session.get('name', 'U')[0:2].upper() }}
                         </div>
                         <span class="user-name">{{ session.get('name', 'Χρήστης') }}</span>
-                        <i class="bi bi-chevron-down"></i>
+                        <i class="bi bi-chevron-down" id="userChevron"></i>
                     </button>
-                    
+
                     <!-- Dropdown Menu -->
-                    <div class="dropdown-menu">
-                        <a href="{{ url_for('profile') if request.endpoint else '#' }}">
+                    <div class="dropdown-menu" id="userDropdown" role="menu">
+                        <a href="#" onclick="return false;" style="opacity:.5; cursor:default;">
                             <i class="bi bi-person-circle"></i>
-                            <span>Προφίλ</span>
+                            <span>{{ session.get('name', 'Χρήστης') }}</span>
                         </a>
-                        <a href="{{ url_for('settings') if request.endpoint else '#' }}">
-                            <i class="bi bi-gear"></i>
-                            <span>Ρυθμίσεις</span>
-                        </a>
-                        <a href="{{ url_for('help') if request.endpoint else '#' }}">
-                            <i class="bi bi-question-circle"></i>
-                            <span>Βοήθεια</span>
-                        </a>
-                        <a href="{{ url_for('auth.logout') }}">
+                        <a href="{{ url_for('main.logout') }}" id="logoutLink">
                             <i class="bi bi-box-arrow-right"></i>
                             <span>Έξοδος</span>
                         </a>
@@ -561,6 +740,9 @@
                     {% endif %}
                 {% endwith %}
                 
+                <!-- Breadcrumb Block -->
+                {% block breadcrumb %}{% endblock %}
+
                 <!-- Page Content Block -->
                 {% block content %}{% endblock %}
             </div>
@@ -616,6 +798,19 @@
             </div>
         </div>
     </footer>
+
+    <!-- ══ CONFIRM MODAL (global) ══ -->
+    <div class="confirm-overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+        <div class="confirm-box">
+            <span class="confirm-icon" id="confirmIcon">⚠️</span>
+            <h5 id="confirmTitle">Επιβεβαίωση</h5>
+            <p id="confirmMsg">Είστε σίγουροι ότι θέλετε να προχωρήσετε;</p>
+            <div class="confirm-actions">
+                <button class="btn btn-outline" id="confirmCancelBtn" onclick="closeConfirm()">Ακύρωση</button>
+                <button class="btn btn-danger" id="confirmOkBtn">Επιβεβαίωση</button>
+            </div>
+        </div>
+    </div>
     
     <!-- ═════════════════════════════════════════════════════════════════ -->
     <!-- SCRIPTS                                                          -->
@@ -623,20 +818,90 @@
     
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     
-    <!-- Flash Alert Auto-dismiss -->
+    <!-- Base UX Scripts -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Auto-dismiss alerts after 5 seconds
-            const alerts = document.querySelectorAll('.alert');
-            alerts.forEach(alert => {
-                if (!alert.classList.contains('alert-danger')) {
-                    setTimeout(() => {
-                        alert.style.animation = 'fadeOut 300ms ease-in-out forwards';
-                        setTimeout(() => alert.remove(), 300);
-                    }, 5000);
-                }
-            });
+    document.addEventListener('DOMContentLoaded', function() {
+
+        // ── AUTO-DISMISS ALERTS ──
+        document.querySelectorAll('.alert').forEach(alert => {
+            if (!alert.classList.contains('alert-danger')) {
+                setTimeout(() => {
+                    alert.style.animation = 'fadeOut 300ms ease-in-out forwards';
+                    setTimeout(() => alert.remove(), 300);
+                }, 5000);
+            }
         });
+
+        // ── USER DROPDOWN (click-based) ──
+        const userMenu   = document.getElementById('userMenu');
+        const userBtn    = document.getElementById('userMenuBtn');
+        const userChev   = document.getElementById('userChevron');
+        if (userBtn && userMenu) {
+            userBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isOpen = userMenu.classList.toggle('open');
+                userBtn.setAttribute('aria-expanded', isOpen);
+                if (userChev) userChev.style.transform = isOpen ? 'rotate(180deg)' : '';
+                // close notifications if open
+                document.getElementById('notifBell')?.classList.remove('open');
+            });
+        }
+
+        // ── NOTIFICATIONS BELL (click-based) ──
+        const notifBell = document.getElementById('notifBell');
+        const bellBtn   = document.getElementById('bellBtn');
+        if (bellBtn && notifBell) {
+            bellBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isOpen = notifBell.classList.toggle('open');
+                bellBtn.setAttribute('aria-expanded', isOpen);
+                // close user menu if open
+                userMenu?.classList.remove('open');
+            });
+        }
+
+        // ── CLOSE BOTH ON OUTSIDE CLICK ──
+        document.addEventListener('click', function() {
+            userMenu?.classList.remove('open');
+            notifBell?.classList.remove('open');
+            if (userBtn) userBtn.setAttribute('aria-expanded', 'false');
+            if (bellBtn) bellBtn.setAttribute('aria-expanded', 'false');
+            if (userChev) userChev.style.transform = '';
+        });
+
+        // ── QUICK SEARCH: submit on Enter (already a form, but ensure no double-submit) ──
+        const searchInput = document.getElementById('navbar-search-input');
+        if (searchInput) {
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') { searchInput.blur(); }
+            });
+        }
+    });
+
+    // ── GLOBAL CONFIRM MODAL ──
+    function showConfirm({ title = 'Επιβεβαίωση', msg = 'Είστε σίγουροι;', icon = '⚠️', danger = true, onConfirm }) {
+        const overlay   = document.getElementById('confirmOverlay');
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMsg').textContent   = msg;
+        document.getElementById('confirmIcon').textContent  = icon;
+        const okBtn = document.getElementById('confirmOkBtn');
+        okBtn.className = danger ? 'btn btn-danger' : 'btn btn-primary';
+        overlay.classList.add('active');
+        // Replace listener
+        const newBtn = okBtn.cloneNode(true);
+        okBtn.parentNode.replaceChild(newBtn, okBtn);
+        newBtn.addEventListener('click', function() {
+            overlay.classList.remove('active');
+            if (typeof onConfirm === 'function') onConfirm();
+        });
+    }
+    function closeConfirm() {
+        document.getElementById('confirmOverlay').classList.remove('active');
+    }
+    // Close on overlay click
+    document.getElementById('confirmOverlay')?.addEventListener('click', function(e) {
+        if (e.target === this) closeConfirm();
+    });
     </script>
     
     {% block extra_js %}{% endblock %}
