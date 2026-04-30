@@ -532,8 +532,13 @@ def bid(req_id):
     ).order_by(Bid.created_at.desc(), Bid.id.desc()).first()
     
     if request.method == "POST":
-        if is_locked:
-            flash("Η ζήτηση δεν δέχεται πλέον προσφορές.", "danger")
+        # Check deadline
+        is_past_deadline = False
+        if rfq.submit_deadline:
+            is_past_deadline = datetime.now() > rfq.submit_deadline
+
+        if is_locked or is_past_deadline:
+            flash("Η ζήτηση δεν δέχεται πλέον προσφορές (έχει λήξει η προθεσμία ή έχει κλείσει).", "danger")
             return redirect(url_for('supplier.bid', req_id=req_id))
         
         if not existing_bid:
@@ -568,6 +573,9 @@ def bid(req_id):
             payload = _build_reopen_payload_from_request(request.form, request.files, json.loads(reopen_revision.payload))
             reopen_revision.payload = json.dumps(payload)
             db.session.commit()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                from flask import jsonify
+                return jsonify({"status": "success", "message": "Αποθηκεύτηκε αυτόματα στο πρόχειρο"})
             flash("Το προσχέδιο αποθηκεύτηκε. Η εταιρία δεν βλέπει ακόμη τη νέα εκδοχή.", "info")
             return redirect(url_for('supplier.bid', req_id=req_id))
 
@@ -601,6 +609,9 @@ def bid(req_id):
                 # Already submitted; keep status and update bid content.
                 pass
         elif action == "save_draft" and existing_bid.status == BidStatus.REJECTED:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                from flask import jsonify
+                return jsonify({"status": "info", "message": "Δεν απαιτείται αποθήκευση για απορριφθείσα"})
             flash("Η προσφορά παραμένει απορριφθείσα μέχρι να γίνει επανυποβολή.", "warning")
             return redirect(url_for('supplier.bid', req_id=req_id))
 
@@ -722,6 +733,10 @@ def bid(req_id):
         
         log_action(req_id, f"Προσφορά από {supplier_name}: Status={existing_bid.status}")
         
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and action == "save_draft":
+            from flask import jsonify
+            return jsonify({"status": "success", "message": "Αποθηκεύτηκε αυτόματα στο πρόχειρο"})
+
         if existing_bid.status == 'submitted':
             flash("Η προσφορά υποβλήθηκε!", "success")
         else:
@@ -906,10 +921,15 @@ def bid(req_id):
     my_awards_total = my_awards_items_subtotal_before_discount
     overall_discount_amount = my_awards_overall_discount
     
+    is_past_deadline = False
+    if rfq.submit_deadline:
+        is_past_deadline = datetime.now() > rfq.submit_deadline
+    
     return render_template("supplier_bid_improved.html",
                          rfq=rfq,
                          bid=existing_bid,
-                         readonly=is_locked,
+                         readonly=is_locked or is_past_deadline,
+                         is_past_deadline=is_past_deadline,
                          item_prefill=item_prefill,
                          reopen_mode=reopen_mode,
                          draft_notes=draft_notes,

@@ -1,91 +1,343 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-end mb-4 border-bottom pb-3">
+<style>
+/* Custom Premium Analytics Styles */
+.analytics-hero {
+    background: linear-gradient(135deg, var(--color-navy) 0%, var(--color-teal-dark) 100%);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6) var(--space-8);
+    color: white;
+    margin-bottom: var(--space-8);
+    box-shadow: 0 10px 30px rgba(15, 58, 95, 0.2);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+}
+
+.analytics-hero::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.hero-title {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: var(--space-2);
+    letter-spacing: -0.5px;
+    color: white;
+}
+
+.hero-subtitle {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.date-filter-form {
+    background: rgba(255, 255, 255, 0.15);
+    padding: var(--space-3);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    z-index: 1;
+}
+
+.date-filter-label {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.date-input {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border: none !important;
+    border-radius: var(--radius-md) !important;
+    font-size: 0.9rem !important;
+    padding: 0.4rem 0.75rem !important;
+    color: var(--color-navy) !important;
+    font-weight: 500;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.btn-filter {
+    background: white;
+    color: var(--color-navy);
+    border: none;
+    font-weight: 700;
+    padding: 0.4rem 1rem;
+    border-radius: var(--radius-md);
+    transition: all 0.2s;
+}
+
+.btn-filter:hover {
+    background: var(--color-teal);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.btn-reset {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: none;
+    padding: 0.4rem 0.75rem;
+    border-radius: var(--radius-md);
+    transition: all 0.2s;
+}
+
+.btn-reset:hover {
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
+}
+
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--space-5);
+    margin-bottom: var(--space-8);
+}
+
+.kpi-card {
+    background: white;
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.02);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.kpi-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08);
+}
+
+.kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+}
+
+.kpi-spend::before { background: linear-gradient(90deg, #0d6efd, #0dcaf2); }
+.kpi-active::before { background: linear-gradient(90deg, var(--color-teal), var(--color-teal-light)); }
+.kpi-pending::before { background: linear-gradient(90deg, #f39c12, #f1c40f); }
+.kpi-time::before { background: linear-gradient(90deg, #6f42c1, #e83e8c); }
+
+.kpi-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: var(--space-4);
+}
+
+.kpi-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.icon-blue { background: rgba(13, 110, 253, 0.1); color: #0d6efd; }
+.icon-teal { background: rgba(32, 201, 151, 0.1); color: var(--color-teal-dark); }
+.icon-warning { background: rgba(243, 156, 18, 0.1); color: #d68910; }
+.icon-purple { background: rgba(111, 66, 193, 0.1); color: #6f42c1; }
+
+.kpi-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+.kpi-value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--color-navy);
+    line-height: 1.1;
+    margin-bottom: var(--space-1);
+    letter-spacing: -0.5px;
+}
+
+.kpi-subtitle {
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+    font-weight: 500;
+}
+
+.chart-container {
+    background: white;
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.02);
+    height: 100%;
+    transition: box-shadow 0.3s ease;
+}
+
+.chart-container:hover {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.chart-header-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: var(--space-5);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--color-gray-100);
+}
+
+.chart-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(30, 58, 95, 0.05);
+    color: var(--color-navy);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: var(--space-3);
+}
+
+.chart-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--color-navy);
+    margin: 0;
+}
+</style>
+
+<!-- Hero Section -->
+<div class="analytics-hero">
     <div>
-        <h3 class="fw-bolder text-dark mb-1"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Executive Analytics</h3>
-        <p class="text-muted small mb-0">Συνολική εικόνα απόδοσης και εξόδων τμήματος προμηθειών.</p>
+        <h1 class="hero-title"><i class="bi bi-pie-chart-fill me-3 opacity-75"></i>Executive Analytics</h1>
+        <p class="hero-subtitle">Ολοκληρωμένη επισκόπηση απόδοσης και εξόδων προμηθειών.</p>
     </div>
     
-    <form method="get" class="d-flex align-items-center gap-2 bg-white p-2 rounded-3 shadow-sm border">
-        <span class="small fw-bold text-muted ms-2">Περίοδος:</span>
-        <input type="date" name="start_date" class="form-control form-control-sm border-0 bg-light" value="{{ data.filters.start }}">
-        <span class="text-muted">-</span>
-        <input type="date" name="end_date" class="form-control form-control-sm border-0 bg-light" value="{{ data.filters.end }}">
-        <button type="submit" class="btn btn-sm btn-dark px-3 fw-bold">Εφαρμογή</button>
-        <a href="{{ url_for('admin.analytics') }}" class="btn btn-sm btn-outline-secondary" title="Καθαρισμός Φίλτρων"><i class="bi bi-arrow-counterclockwise"></i></a>
+    <form method="get" class="date-filter-form shadow-sm">
+        <span class="date-filter-label"><i class="bi bi-calendar3 me-2"></i>Περίοδος</span>
+        <input type="date" name="start_date" class="form-control date-input" value="{{ data.filters.start }}">
+        <span class="text-white opacity-50">-</span>
+        <input type="date" name="end_date" class="form-control date-input" value="{{ data.filters.end }}">
+        <button type="submit" class="btn-filter">Εφαρμογή</button>
+        <a href="{{ url_for('admin.analytics') }}" class="btn-reset" title="Καθαρισμός Φίλτρων"><i class="bi bi-arrow-counterclockwise"></i></a>
     </form>
 </div>
 
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 h-100 bg-primary text-white">
-            <div class="card-body p-4 position-relative overflow-hidden">
-                <div class="small fw-bold text-uppercase opacity-75 mb-1">Συνολικα Εξοδα</div>
-                <div class="h3 fw-bolder mb-0">{{ "{:,.2f}".format(data.kpis.spend).replace(',', 'X').replace('.', ',').replace('X', '.') }} €</div>
-                <i class="bi bi-currency-euro position-absolute opacity-25" style="font-size: 5rem; right: -10px; bottom: -20px;"></i>
-            </div>
+<!-- KPI Grid -->
+<div class="kpi-grid">
+    <!-- Spend -->
+    <div class="kpi-card kpi-spend">
+        <div class="kpi-header">
+            <h3 class="kpi-title">Συνολικα Εξοδα</h3>
+            <div class="kpi-icon icon-blue"><i class="bi bi-currency-euro"></i></div>
+        </div>
+        <div>
+            <div class="kpi-value">{{ "{:,.2f}".format(data.kpis.spend).replace(',', 'X').replace('.', ',').replace('X', '.') }}</div>
+            <div class="kpi-subtitle">Εγκεκριμένο μπάτζετ περιόδου</div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
-            <div class="card-body p-4 border-start border-info border-5">
-                <div class="small fw-bold text-muted text-uppercase mb-1">Ενεργες Ζητησεις</div>
-                <div class="h3 fw-bolder text-dark mb-0">{{ data.kpis.active }}</div>
-                <div class="small text-muted mt-1">Σε διαδικασία</div>
-            </div>
+    
+    <!-- Active Requests -->
+    <div class="kpi-card kpi-active">
+        <div class="kpi-header">
+            <h3 class="kpi-title">Ενεργες Ζητησεις</h3>
+            <div class="kpi-icon icon-teal"><i class="bi bi-activity"></i></div>
+        </div>
+        <div>
+            <div class="kpi-value">{{ data.kpis.active }}</div>
+            <div class="kpi-subtitle">Σε διαδικασία προσφορών/αξιολόγησης</div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
-            <div class="card-body p-4 border-start border-warning border-5">
-                <div class="small fw-bold text-muted text-uppercase mb-1">Προς Εγκριση</div>
-                <div class="h3 fw-bolder text-dark mb-0">{{ data.kpis.pending }}</div>
-                <div class="small text-warning fw-semibold mt-1"><i class="bi bi-exclamation-circle me-1"></i>Απαιτούν ενέργεια</div>
-            </div>
+    
+    <!-- Pending -->
+    <div class="kpi-card kpi-pending">
+        <div class="kpi-header">
+            <h3 class="kpi-title">Προς Εγκριση</h3>
+            <div class="kpi-icon icon-warning"><i class="bi bi-exclamation-circle"></i></div>
+        </div>
+        <div>
+            <div class="kpi-value">{{ data.kpis.pending }}</div>
+            <div class="kpi-subtitle text-warning fw-bold">Απαιτούν άμεση ενέργεια</div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
-            <div class="card-body p-4 border-start border-success border-5">
-                <div class="small fw-bold text-muted text-uppercase mb-1">Χρονος Παραδοσης</div>
-                <div class="h3 fw-bolder text-dark mb-0">{{ data.kpis.lead_time }} <span class="fs-6 fw-normal text-muted">ημέρες</span></div>
-                <div class="small text-muted mt-1">Κατά μέσο όρο</div>
-            </div>
+    
+    <!-- Lead Time -->
+    <div class="kpi-card kpi-time">
+        <div class="kpi-header">
+            <h3 class="kpi-title">Χρονος Παραδοσης</h3>
+            <div class="kpi-icon icon-purple"><i class="bi bi-clock-history"></i></div>
+        </div>
+        <div>
+            <div class="kpi-value">{{ data.kpis.lead_time }} <span class="fs-5 text-muted fw-normal">ημέρες</span></div>
+            <div class="kpi-subtitle">Μέσος χρόνος ολοκλήρωσης</div>
         </div>
     </div>
 </div>
 
+<!-- Charts Section -->
 <div class="row g-4 mb-5">
+    <!-- Trend Chart -->
     <div class="col-12">
-        <div class="card border-0 shadow-sm rounded-4">
-            <div class="card-header bg-white border-0 pt-4 px-4">
-                <h6 class="fw-bold mb-0 text-muted text-uppercase small"><i class="bi bi-graph-up text-primary me-2"></i>Ταση Εξοδων (Spend Trend)</h6>
+        <div class="chart-container">
+            <div class="chart-header-row">
+                <div class="chart-icon"><i class="bi bi-graph-up-arrow"></i></div>
+                <h3 class="chart-title">Τάση Εξόδων (Spend Trend)</h3>
             </div>
-            <div class="card-body p-4">
-                <div style="height: 300px;"><canvas id="trendChart"></canvas></div>
+            <div style="height: 320px; width: 100%; position: relative;">
+                <canvas id="trendChart"></canvas>
             </div>
         </div>
     </div>
 
+    <!-- Cost Centers Chart -->
     <div class="col-lg-5">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
-            <div class="card-header bg-white border-0 pt-4 px-4">
-                <h6 class="fw-bold mb-0 text-muted text-uppercase small"><i class="bi bi-buildings text-primary me-2"></i>Κατανομη ανα Εργο</h6>
+        <div class="chart-container">
+            <div class="chart-header-row">
+                <div class="chart-icon"><i class="bi bi-buildings"></i></div>
+                <h3 class="chart-title">Κατανομή ανά Έργο</h3>
             </div>
-            <div class="card-body p-4">
-                <div style="height: 280px;"><canvas id="ccChart"></canvas></div>
+            <div style="height: 300px; width: 100%; position: relative; display: flex; justify-content: center;">
+                <canvas id="ccChart"></canvas>
             </div>
         </div>
     </div>
 
+    <!-- Top Suppliers Chart -->
     <div class="col-lg-7">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
-            <div class="card-header bg-white border-0 pt-4 px-4">
-                <h6 class="fw-bold mb-0 text-muted text-uppercase small"><i class="bi bi-award text-primary me-2"></i>Top 5 Προμηθευτες (Τζιρος)</h6>
+        <div class="chart-container">
+            <div class="chart-header-row">
+                <div class="chart-icon"><i class="bi bi-trophy"></i></div>
+                <h3 class="chart-title">Κορυφαίοι Προμηθευτές (Τζίρος)</h3>
             </div>
-            <div class="card-body p-4">
-                <div style="height: 280px;"><canvas id="supChart"></canvas></div>
+            <div style="height: 300px; width: 100%; position: relative;">
+                <canvas id="supChart"></canvas>
             </div>
         </div>
     </div>
@@ -97,10 +349,25 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const d = JSON.parse(document.getElementById('analytics-json').textContent);
+    
+    // Default Chart Config for modern look
+    Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    Chart.defaults.color = '#6c757d';
+    Chart.defaults.scale.grid.color = 'rgba(0, 0, 0, 0.05)';
+    Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(15, 58, 95, 0.9)';
+    Chart.defaults.plugins.tooltip.padding = 12;
+    Chart.defaults.plugins.tooltip.cornerRadius = 8;
+    Chart.defaults.plugins.tooltip.titleFont = { size: 13, weight: 'bold' };
+    Chart.defaults.plugins.tooltip.bodyFont = { size: 14 };
 
-    // 1. Trend Chart (Line)
+    // 1. Trend Chart (Line with gradient fill)
     if (d.charts.trend.labels.length > 0) {
-        new Chart(document.getElementById('trendChart'), {
+        const ctxTrend = document.getElementById('trendChart').getContext('2d');
+        const gradientTrend = ctxTrend.createLinearGradient(0, 0, 0, 320);
+        gradientTrend.addColorStop(0, 'rgba(13, 110, 253, 0.4)');
+        gradientTrend.addColorStop(1, 'rgba(13, 110, 253, 0.0)');
+
+        new Chart(ctxTrend, {
             type: 'line',
             data: {
                 labels: d.charts.trend.labels,
@@ -108,19 +375,39 @@ document.addEventListener('DOMContentLoaded', function() {
                     label: 'Κόστος (€)',
                     data: d.charts.trend.values,
                     borderColor: '#0d6efd',
-                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                    borderWidth: 2,
+                    backgroundColor: gradientTrend,
+                    borderWidth: 3,
                     fill: true,
-                    tension: 0.3,
-                    pointBackgroundColor: '#0d6efd',
-                    pointRadius: 4
+                    tension: 0.4, // Smooth curves
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: '#0d6efd',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
                 }]
             },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { 
+                    legend: { display: false } 
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { 
+                        beginAtZero: true,
+                        border: { display: false }
+                    }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                }
+            }
         });
     }
 
-    // 2. Cost Center Chart (Doughnut)
+    // 2. Cost Center Chart (Doughnut with spacing)
     if (d.charts.cc.labels.length > 0) {
         new Chart(document.getElementById('ccChart'), {
             type: 'doughnut',
@@ -128,38 +415,71 @@ document.addEventListener('DOMContentLoaded', function() {
                 labels: d.charts.cc.labels,
                 datasets: [{
                     data: d.charts.cc.values,
-                    backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#0dcaf2', '#6c757d'],
-                    borderWidth: 0
+                    backgroundColor: [
+                        '#0d6efd', '#20c997', '#f39c12', '#e83e8c', '#0dcaf2', '#6610f2'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 4
                 }]
             },
             options: { 
                 responsive: true, 
                 maintainAspectRatio: false,
-                cutout: '65%',
-                plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: {size: 11} } } }
+                cutout: '70%',
+                plugins: { 
+                    legend: { 
+                        position: 'right', 
+                        labels: { 
+                            boxWidth: 12, 
+                            usePointStyle: true,
+                            padding: 20,
+                            font: { size: 12, weight: '500' } 
+                        } 
+                    } 
+                }
             }
         });
     }
 
-    // 3. Top Suppliers Chart (Horizontal Bar)
+    // 3. Top Suppliers Chart (Horizontal Bar with gradients)
     if (d.charts.sups.labels.length > 0) {
-        new Chart(document.getElementById('supChart'), {
+        const ctxSup = document.getElementById('supChart').getContext('2d');
+        const gradientSup = ctxSup.createLinearGradient(0, 0, 500, 0);
+        gradientSup.addColorStop(0, '#6f42c1');
+        gradientSup.addColorStop(1, '#a370f7');
+
+        new Chart(ctxSup, {
             type: 'bar',
             data: {
                 labels: d.charts.sups.labels,
                 datasets: [{
                     label: 'Συνολικός Τζίρος (€)',
                     data: d.charts.sups.values,
-                    backgroundColor: '#6610f2',
-                    borderRadius: 4
+                    backgroundColor: gradientSup,
+                    borderRadius: 6,
+                    borderSkipped: false,
+                    barThickness: 24
                 }]
             },
             options: { 
                 responsive: true, 
                 maintainAspectRatio: false,
-                indexAxis: 'y', // Οριζόντιες μπάρες
-                plugins: { legend: { display: false } },
-                scales: { x: { beginAtZero: true } }
+                indexAxis: 'y', // Horizontal bars
+                plugins: { 
+                    legend: { display: false } 
+                },
+                scales: { 
+                    x: { 
+                        beginAtZero: true,
+                        grid: { borderDash: [4, 4] },
+                        border: { display: false }
+                    },
+                    y: {
+                        grid: { display: false },
+                        border: { display: false }
+                    }
+                }
             }
         });
     }

@@ -18,7 +18,7 @@
     <!-- Pending Requests Card -->
   <div class="col-12 col-sm-6 col-lg-3">
     <div class="kpi-card">
-      <div class="kpi-card-title">Pending requests</div>
+      <div class="kpi-card-title">Εκκρεμείς Προσφορές</div>
       <div class="kpi-card-value">{{ pending_count }}</div>
       <div class="d-flex align-items-center gap-2">
         <i class="bi bi-inbox" style="font-size: 1.25rem; color: var(--color-teal);"></i>
@@ -30,7 +30,7 @@
   <!-- Pending Delivery Orders Card -->
   <div class="col-12 col-sm-6 col-lg-3">
     <div class="kpi-card accent-success">
-      <div class="kpi-card-title">Pending Delivery</div>
+      <div class="kpi-card-title">Παραγγελίες προς Παράδοση</div>
       <div class="kpi-card-value">{{ full_awarded_count }}</div>
       <div class="d-flex align-items-center gap-2">
         <i class="bi bi-award-fill" style="font-size: 1.25rem; color: var(--color-warning);"></i>
@@ -42,7 +42,7 @@
   <!-- Pending Delivery Items Card -->
   <div class="col-12 col-sm-6 col-lg-3">
     <div class="kpi-card accent-warning">
-      <div class="kpi-card-title">Item Pending Delivery</div>
+      <div class="kpi-card-title">Είδη προς Παράδοση</div>
       <div class="kpi-card-value">{{ awards_count }}</div>
       <div class="d-flex align-items-center gap-2">
         <i class="bi bi-trophy" style="font-size: 1.25rem; color: var(--color-warning);"></i>
@@ -54,7 +54,7 @@
   <!-- Total Requests Card -->
   <div class="col-12 col-sm-6 col-lg-3">
     <div class="kpi-card accent-teal">
-      <div class="kpi-card-title">Total requests</div>
+      <div class="kpi-card-title">Σύνολο Ζητήσεων</div>
       <div class="kpi-card-value">{{ rfqs|length if rfqs else 0 }}</div>
       <div class="d-flex align-items-center gap-2">
         <i class="bi bi-file-earmark-text" style="font-size: 1.25rem; color: var(--color-teal);"></i>
@@ -92,40 +92,40 @@
         <div class="filter-section">
           <div class="filter-section-title">
             <i class="bi bi-list-check"></i>
-            Bid status
+            Κατάσταση
           </div>
           <div class="filter-group">
             <label class="filter-item">
               <input type="checkbox" name="status" value="open" {% if 'open' in status_filters %}checked{% endif %} class="filter-checkbox">
-              <span class="filter-label">Open</span>
+              <span class="filter-label">Ανοιχτή</span>
             </label>
             <label class="filter-item">
               <input type="checkbox" name="status" value="submitted" {% if 'submitted' in status_filters %}checked{% endif %} class="filter-checkbox">
-              <span class="filter-label">Submitted</span>
+              <span class="filter-label">Υποβλήθηκε</span>
             </label>
             <label class="filter-item">
               <input type="checkbox" name="status" value="accepted" {% if 'accepted' in status_filters %}checked{% endif %} class="filter-checkbox">
-              <span class="filter-label">Accepted</span>
+              <span class="filter-label">Αποδεκτή</span>
             </label>
             <label class="filter-item">
-              <input type="checkbox" name="status" value="pending_delivery" {% if 'pending_delivery' in status_filters %}checked{% endif %} class="filter-checkbox">
-              <span class="filter-label">Pending Delivery</span>
+              <input type="checkbox" name="status" value="awarded" {% if 'awarded' in status_filters %}checked{% endif %} class="filter-checkbox">
+              <span class="filter-label">Αναμένει Παράδοση</span>
             </label>
             <label class="filter-item">
               <input type="checkbox" name="status" value="rejected" {% if 'rejected' in status_filters %}checked{% endif %} class="filter-checkbox">
-              <span class="filter-label">Rejected</span>
+              <span class="filter-label">Απορρίφθηκε</span>
             </label>
             <label class="filter-item">
               <input type="checkbox" name="status" value="reopen" {% if 'reopen' in status_filters %}checked{% endif %} class="filter-checkbox">
-              <span class="filter-label">Reopen</span>
+              <span class="filter-label">Ανοιχτή Ξανά</span>
             </label>
             <label class="filter-item">
               <input type="checkbox" name="status" value="no_bid" {% if 'no_bid' in status_filters %}checked{% endif %} class="filter-checkbox">
-              <span class="filter-label">No bid</span>
+              <span class="filter-label">Χωρίς Προσφορά</span>
             </label>
             <label class="filter-item">
               <input type="checkbox" name="status" value="draft" {% if 'draft' in status_filters %}checked{% endif %} class="filter-checkbox">
-              <span class="filter-label">Draft</span>
+              <span class="filter-label">Πρόχειρο</span>
             </label>
           </div>
         </div>
@@ -177,7 +177,7 @@
     <div class="mb-8">
       <div class="d-flex justify-content-between align-items-center mb-5">
         <h2 class="mb-0" style="color: var(--color-navy); font-size: var(--font-size-lg);">
-          <i class="bi bi-folder-open me-2" style="color: var(--color-navy);"></i>Requests
+          <i class="bi bi-folder-open me-2" style="color: var(--color-navy);"></i>Ζητήσεις
         </h2>
       </div>
 
@@ -210,16 +210,16 @@
                 </td>
                 <td style="padding: var(--space-4); color: var(--color-text-secondary);">{{ rfq.delivery_location or '-' }}</td>
                 <td style="padding: var(--space-4); color: var(--color-text-secondary);">
-                  {% if rfq.submit_deadline %}
+                    {% if rfq.submit_deadline %}
                     {{ rfq.submit_deadline.strftime('%d/%m/%Y') }}
                     {% set dl = rfq.submit_deadline %}
                     {% set days = (dl - now).days %}
                     {% if days <= 0 %}
-                      <span class="badge bg-danger ms-1" title="ψηφίδα">Διέρρευσε</span>
+                      <span class="badge bg-danger ms-1" title="Έληξε"><i class="bi bi-exclamation-circle me-1"></i>Έληξε</span>
                     {% elif days <= 3 %}
-                      <span class="badge bg-danger ms-1">{{ days }}d</span>
+                      <span class="badge bg-danger ms-1"><i class="bi bi-fire me-1"></i>Λήγει σε {{ days }}ημ</span>
                     {% elif days <= 7 %}
-                      <span class="badge bg-warning text-dark ms-1">{{ days }}d</span>
+                      <span class="badge bg-warning text-dark ms-1">Σε {{ days }}ημ</span>
                     {% endif %}
                   {% else %}
                     -
@@ -229,31 +229,31 @@
                   {% if bids_map and rfq.id in bids_map %}
                     {% set current_bid = bids_map[rfq.id] %}
                     {% if reopen_bid_ids and current_bid.id in reopen_bid_ids %}
-                      <span class="badge bg-info text-dark">Reopen</span>
+                      <span class="badge bg-info text-dark">Ανοιχτή Ξανά</span>
                     {% elif current_bid.status == 'submitted' %}
-                      <span class="badge badge-success">Submitted</span>
+                      <span class="badge badge-success">Υποβλήθηκε</span>
                     {% elif current_bid.status == 'accepted' and awarded_bid_ids and current_bid.id in awarded_bid_ids %}
-                      <span class="badge bg-success">Pending Delivery</span>
+                      <span class="badge bg-success">Αναμένει Παράδοση</span>
                     {% elif current_bid.status == 'accepted' %}
-                      <span class="badge badge-secondary">Accepted</span>
+                      <span class="badge badge-secondary">Αποδεκτή</span>
                     {% elif current_bid.status == 'rejected' %}
-                      <span class="badge bg-danger">Rejected</span>
+                      <span class="badge bg-danger">Απορρίφθηκε</span>
                     {% elif current_bid.status == 'draft' %}
-                      <span class="badge badge-warning text-dark">Draft</span>
+                      <span class="badge badge-warning text-dark">Πρόχειρο</span>
                     {% else %}
                       <span class="badge badge-secondary">{{ get_status_display_name(current_bid.status) }}</span>
                     {% endif %}
                   {% else %}
                     {% if rfq.status in ['pending_delivery', 'received'] %}
-                      <span class="badge badge-secondary">No bid</span>
+                      <span class="badge badge-secondary">Χωρίς προσφορά</span>
                     {% else %}
-                      <span class="badge bg-info text-dark">Open</span>
+                      <span class="badge bg-info text-dark">Ανοιχτή</span>
                     {% endif %}
                   {% endif %}
                 </td>
                 <td style="text-align: right; padding-right: var(--space-4);">
-                  <a href="{{ url_for('supplier.bid', req_id=rfq.id) }}" class="btn btn-primary btn-sm px-3">
-                    {% if bids_map and rfq.id in bids_map %}<i class="bi bi-pencil-square me-1"></i>Επεξεργασία{% else %}<i class="bi bi-plus-lg me-1"></i>Υποβολή{% endif %}
+                  <a href="{{ url_for('supplier.bid', req_id=rfq.id) }}" class="btn btn-secondary btn-sm px-3" style="white-space: nowrap;">
+                    <i class="bi bi-arrow-right me-1"></i> Προβολή
                   </a>
                 </td>
               </tr>
@@ -267,19 +267,36 @@
         <i class="bi bi-info-circle me-2"></i>Δεν υπάρχουν ζητήσεις για τα επιλεγμένα φίλτρα.
       </div>
       {% endif %}
+      
+      <!-- Loading Overlay -->
+      <div id="loadingOverlay" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.7); z-index: 10; align-items: center; justify-content: center; backdrop-filter: blur(2px); border-radius: var(--radius-lg);">
+          <div class="text-center">
+              <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                  <span class="visually-hidden">Φόρτωση...</span>
+              </div>
+              <div class="mt-2 fw-semibold text-primary">Εφαρμογή φίλτρων...</div>
+          </div>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
     function showLoading() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) overlay.style.display = 'flex';
+        
         const filterForm = document.getElementById('filterForm');
         if (filterForm) {
-            filterForm.submit();
+            setTimeout(() => {
+                filterForm.submit();
+            }, 50);
         }
     }
 
     function clearFilters() {
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) overlay.style.display = 'flex';
       window.location.href = "{{ url_for('supplier.dashboard') }}";
     }
 
