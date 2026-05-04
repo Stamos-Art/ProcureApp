@@ -46,14 +46,50 @@
                             </select>
                         </div>
 
-                        <div class="col-12 text-muted small mb-3">
-                            <i class="bi bi-info-circle"></i> Αν επιλέξετε ρόλο "Προμηθευτής", θα μπορέσετε να συμπληρώσετε τα στοιχεία της εταιρείας του (ΑΦΜ, Διεύθυνση κλπ) στο επόμενο βήμα, κάνοντας "Επεξεργασία" στον χρήστη.
+                        <div id="supplier-fields" style="display: none;" class="border rounded p-3 bg-light mb-3">
+                            <h6 class="mb-3 text-primary"><i class="bi bi-buildings"></i> Στοιχεία Προμηθευτή</h6>
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <label class="form-label text-muted small text-uppercase fw-bold">Επωνυμία Εταιρείας</label>
+                                    <input type="text" name="company_name" class="form-control" placeholder="π.χ. ΠΑΠΑΔΟΠΟΥΛΟΣ Α.Ε.">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small text-uppercase fw-bold">ΑΦΜ</label>
+                                    <input type="text" name="tax_id" class="form-control" placeholder="000000000">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small text-uppercase fw-bold">Τηλέφωνο</label>
+                                    <input type="text" name="phone" class="form-control">
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label text-muted small text-uppercase fw-bold">IBAN</label>
+                                    <input type="text" name="iban" class="form-control" placeholder="GR00 0000 ...">
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label text-muted small text-uppercase fw-bold">Διεύθυνση</label>
+                                    <input type="text" name="address" class="form-control">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small text-uppercase fw-bold">Πόλη</label>
+                                    <input type="text" name="city" class="form-control">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small text-uppercase fw-bold">Τ.Κ.</label>
+                                    <input type="text" name="postal_code" class="form-control">
+                                </div>
+                            </div>
                         </div>
 
                         <div class="col-12 d-flex justify-content-between mt-4">
                             <a href="{{ url_for('admin.users') }}" class="btn btn-light">Ακύρωση</a>
                             <button type="submit" class="btn btn-success px-4">Δημιουργία</button>
                         </div>
+
+                        <script>
+                            document.querySelector('select[name="role"]').addEventListener('change', function() {
+                                document.getElementById('supplier-fields').style.display = (this.value === 'supplier') ? 'block' : 'none';
+                            });
+                        </script>
                     </div>
                 </form>
             </div>

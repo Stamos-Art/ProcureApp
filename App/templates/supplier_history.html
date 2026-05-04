@@ -18,15 +18,15 @@
   <form method="get" class="mb-4">
     <div class="row g-2 align-items-end">
       <div class="col-md-4">
-        <label class="form-label">Status filter</label>
+        <label class="form-label">Φίλτρο κατάστασης</label>
         <select name="status" class="form-select" onchange="this.form.submit()">
-          <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
-          <option value="submitted" {% if status_filter == 'submitted' %}selected{% endif %}>Submitted</option>
-          <option value="accepted" {% if status_filter == 'accepted' %}selected{% endif %}>Accepted</option>
-          <option value="pending_delivery" {% if status_filter == 'pending_delivery' %}selected{% endif %}>Pending Delivery</option>
-          <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
-          <option value="reopen" {% if status_filter == 'reopen' %}selected{% endif %}>Reopen</option>
-          <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
+          <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Όλες</option>
+          <option value="submitted" {% if status_filter == 'submitted' %}selected{% endif %}>Υποβλήθηκαν</option>
+          <option value="accepted" {% if status_filter == 'accepted' %}selected{% endif %}>Αποδεκτές</option>
+          <option value="pending_delivery" {% if status_filter == 'pending_delivery' %}selected{% endif %}>Αναμονή Παράδοσης</option>
+          <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Απορριφθείσες</option>
+          <option value="reopen" {% if status_filter == 'reopen' %}selected{% endif %}>Ανοιχτές ξανά</option>
+          <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Πρόχειρα</option>
         </select>
       </div>
     </div>
@@ -53,17 +53,17 @@
             <td>{{ bid.rfq.title if bid.rfq else 'Διαγραμμένη ζήτηση' }}</td>
             <td>
               {% if reopen_bid_ids and bid.id in reopen_bid_ids %}
-                <span class="badge bg-info text-dark">Reopen</span>
+                <span class="badge bg-info text-dark">Ανοιχτή ξανά</span>
               {% elif bid.status == 'submitted' %}
-                <span class="badge bg-success">Submitted</span>
+                <span class="badge bg-success">Υποβλήθηκε</span>
               {% elif bid.status == 'accepted' and award_map.get(bid.id) %}
-                <span class="badge bg-success">Pending Delivery</span>
+                <span class="badge bg-success">Αναμένει Παράδοση</span>
               {% elif bid.status == 'accepted' %}
-                <span class="badge badge-secondary">Accepted</span>
+                <span class="badge badge-secondary">Αποδεκτή</span>
               {% elif bid.status == 'draft' %}
-                <span class="badge bg-warning text-dark">Draft</span>
+                <span class="badge bg-warning text-dark">Πρόχειρο</span>
               {% elif bid.status == 'rejected' %}
-                <span class="badge bg-danger">Rejected</span>
+                <span class="badge bg-danger">Απορρίφθηκε</span>
               {% else %}
                 <span class="badge bg-secondary">{{ get_status_display_name(bid.status) }}</span>
               {% endif %}

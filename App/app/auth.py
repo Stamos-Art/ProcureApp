@@ -30,7 +30,7 @@ def is_editable_by_current_user(rfq) -> bool:
     """Check if current user can edit the RFQ"""
     if session.get("name") != rfq.created_by:
         return False
-    return rfq.status in [RFQStatus.PENDING, RFQStatus.RETURNED_FOR_REVISION, RFQStatus.DRAFT]
+    return rfq.status in [RFQStatus.PENDING, RFQStatus.RETURNED_FOR_REVISION, RFQStatus.DRAFT, RFQStatus.DENIED]
 
 
 def can_approve_rfq(rfq) -> bool:
@@ -57,7 +57,7 @@ def get_phase_key(rfq) -> str:
     if rfq.status == RFQStatus.RECEIVED:
         return "received"
     if rfq.status == RFQStatus.CLOSED:
-        return "awarded"
+        return "pending_delivery"
     if rfq.status == RFQStatus.OPEN:
         count_bids = len(rfq.bids or [])
         return "offers_received" if count_bids > 0 else "awaiting_offers"

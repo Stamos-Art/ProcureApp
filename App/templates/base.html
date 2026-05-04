@@ -85,7 +85,7 @@
             {% if session.get('role') in ['company','chief'] %}
               <li class="nav-item">
                   <a class="nav-link {% if request.endpoint == 'company.dashboard' %}active{% endif %}" href="{{ url_for('company.dashboard') }}">
-                      <i class="bi bi-list-task"></i> Πίνακας Ζητήσεων
+                      <i class="bi bi-list-task"></i> Πίνακας Ελέγχου
                   </a>
               </li>
               <li class="nav-item">
@@ -138,7 +138,7 @@
                             <div class="d-flex justify-content-between align-items-center">
                                 <span class="fw-bold text-primary" style="color: var(--color-navy);">Ειδοποιήσεις</span>
                                 {% if unread_notifs|length > 0 %}
-                                <form action="{{ url_for('auth.read_all_notifications') }}" method="post" class="m-0">
+                                <form action="{{ url_for('main.read_all_notifications') }}" method="post" class="m-0">
                                     <button type="submit" class="btn btn-sm btn-link text-teal p-0 text-decoration-none small" style="color: var(--color-teal);">Όλες αναγνωσμένες</button>
                                 </form>
                                 {% endif %}
@@ -147,7 +147,7 @@
                         <div class="notif-scroll">
                             {% for n in unread_notifs %}
                             <li>
-                                <a class="dropdown-item py-3 border-bottom text-wrap" href="{{ url_for('auth.read_notification', notif_id=n.id) }}">
+                                <a class="dropdown-item py-3 border-bottom text-wrap" href="{{ url_for('main.read_notification', notif_id=n.id) }}">
                                     <div class="d-flex align-items-start">
                                         <div class="rounded-circle p-2 me-3" style="background-color: rgba(30, 58, 95, 0.1); color: var(--color-navy);">
                                             <i class="bi bi-info-circle"></i>
@@ -169,11 +169,11 @@
                     </ul>
                 </div>
 
-                <div class="d-none d-md-flex align-items-center gap-2">
+                <a href="{{ url_for('main.profile') }}" class="d-none d-md-flex align-items-center gap-2 text-decoration-none text-dark me-3">
                     <i class="bi bi-person-circle" style="font-size: 1.25rem;"></i>
                     <span class="small">{{ session.get('name') }}</span>
-                </div>
-                <a href="{{ url_for('auth.logout') }}" class="btn btn-secondary btn-sm rounded-lg px-3">
+                </a>
+                <a href="{{ url_for('main.logout') }}" class="btn btn-secondary btn-sm rounded-lg px-3">
                     <i class="bi bi-box-arrow-right"></i> Έξοδος
                 </a>
             {% endif %}
@@ -240,6 +240,66 @@
             setTimeout(function() {
                 $('.alert-dismissible').fadeOut('slow', function() { $(this).remove(); });
             }, 4000);
+
+            {% if session.get('username') %}
+            // AJAX Polling for Notifications
+            function pollNotifications() {
+                fetch('{{ url_for("main.api_unread_notifications") }}')
+                .then(response => response.json())
+                .then(data => {
+                    // Update count badge
+                    const bell = document.querySelector('#notifDropdown');
+                    let badge = bell.querySelector('.badge');
+                    if (data.count > 0) {
+                        if (badge) {
+                            badge.textContent = data.count;
+                        } else {
+                            badge = document.createElement('span');
+                            badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light';
+                            badge.style.fontSize = '0.6rem';
+                            badge.style.padding = '0.35em 0.5em';
+                            badge.textContent = data.count;
+                            bell.appendChild(badge);
+                        }
+                    } else if (badge) {
+                        badge.remove();
+                    }
+                    
+                    // Update dropdown list
+                    const scrollDiv = document.querySelector('.notif-scroll');
+                    if (!scrollDiv) return;
+                    
+                    if (data.count > 0) {
+                        let html = '';
+                        data.notifications.forEach(n => {
+                            html += `
+                                <li>
+                                    <a class="dropdown-item py-3 border-bottom text-wrap" href="/notifications/read/${n.id}">
+                                        <div class="d-flex align-items-start">
+                                            <div class="rounded-circle p-2 me-3" style="background-color: rgba(30, 58, 95, 0.1); color: var(--color-navy);">
+                                                <i class="bi bi-info-circle"></i>
+                                            </div>
+                                            <div>
+                                                <p class="mb-1 small fw-bold text-dark" style="line-height: 1.2; color: var(--color-text-primary);">${n.message}</p>
+                                                <small class="text-muted" style="font-size: 0.7rem; color: var(--color-text-secondary);">${n.created_at}</small>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </li>`;
+                        });
+                        scrollDiv.innerHTML = html;
+                    } else {
+                        scrollDiv.innerHTML = `
+                            <li class="p-4 text-center" style="color: var(--color-text-secondary);">
+                                <i class="bi bi-bell-slash fs-4 d-block mb-2 opacity-50"></i>
+                                <span class="small">Δεν έχετε νέες ειδοποιήσεις</span>
+                            </li>`;
+                    }
+                })
+                .catch(err => console.error('Notification poll error:', err));
+            }
+            setInterval(pollNotifications, 30000);
+            {% endif %}
         });
     </script>
     {% block extra_js %}{% endblock %}

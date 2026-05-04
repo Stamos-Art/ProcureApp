@@ -256,21 +256,21 @@ def get_status_display_name(status):
     status_key = str(getattr(status, 'value', status)).strip().lower()
 
     display_map = {
-        'pending': 'Pending',
-        'returned_for_revision': 'Returned for revision',
-        'open': 'Open',
-        'closed': 'Closed',
-        'received': 'Received',
-        'denied': 'Denied',
-        'cancelled': 'Cancelled',
-        'pending_final_approval': 'Awaiting budget approval',
-        'draft': 'Draft',
-        'submitted': 'Submitted',
-        'accepted': 'Accepted',
-        'rejected': 'Rejected',
-        'withdrawn': 'Withdrawn',
-        'reopen': 'Reopen',
-        'reopened': 'Reopen'
+        'pending': 'Εκκρεμεί',
+        'returned_for_revision': 'Επεστράφη για αναθεώρηση',
+        'open': 'Ανοιχτή',
+        'closed': 'Κλειστή/Ανατέθηκε',
+        'received': 'Παραλήφθηκε',
+        'denied': 'Απορρίφθηκε',
+        'cancelled': 'Ακυρώθηκε',
+        'pending_final_approval': 'Αναμονή έγκρισης προϋπολογισμού',
+        'draft': 'Πρόχειρο',
+        'submitted': 'Υποβλήθηκε',
+        'accepted': 'Αποδεκτή',
+        'rejected': 'Απορρίφθηκε',
+        'withdrawn': 'Αποσύρθηκε',
+        'reopen': 'Ανοιχτή ξανά',
+        'reopened': 'Ανοιχτή ξανά'
     }
 
     return display_map.get(status_key, status_key.replace('_', ' ').title())

@@ -55,7 +55,17 @@ def user_new():
             
             if role == 'supplier':
                 db.session.flush()
-                db.session.add(SupplierProfile(user_id=u.id))
+                profile = SupplierProfile(
+                    user_id=u.id,
+                    company_name=request.form.get("company_name"),
+                    tax_id=request.form.get("tax_id"),
+                    phone=request.form.get("phone"),
+                    iban=request.form.get("iban"),
+                    address=request.form.get("address"),
+                    city=request.form.get("city"),
+                    postal_code=request.form.get("postal_code")
+                )
+                db.session.add(profile)
             
             db.session.commit()
             flash("Ο χρήστης δημιουργήθηκε.", "success")
@@ -71,7 +81,15 @@ def user_detail(user_id):
     
     if request.method == "POST":
         user.display_name = request.form.get("display_name")
-        user.is_active = request.form.get("is_active") == "on"
+        user.is_active = request.form.get("is_active") == "1"
+        user.role = request.form.get("role")
+        
+        limit_val = request.form.get("approval_limit")
+        if limit_val and limit_val.strip():
+            try:
+                user.approval_limit = Decimal(limit_val.strip())
+            except:
+                pass
         
         if request.form.get("password"):
             user.set_password(request.form.get("password"))
@@ -80,10 +98,14 @@ def user_detail(user_id):
             profile = user.profile or SupplierProfile(user_id=user.id)
             profile.company_name = request.form.get("company_name")
             profile.tax_id = request.form.get("tax_id")
+            profile.iban = request.form.get("iban")
             profile.contact_name = request.form.get("contact_name")
             profile.phone = request.form.get("phone")
             profile.email = request.form.get("email")
             profile.address = request.form.get("address")
+            profile.city = request.form.get("city")
+            profile.postal_code = request.form.get("postal_code")
+            profile.notes = request.form.get("notes")
             
             if not user.profile:
                 db.session.add(profile)
@@ -376,10 +398,20 @@ def analytics():
         if aw.created_at:
             month = aw.created_at.strftime('%b %Y')
             trend_by_month[month] += float(aw.line_total or 0)
-    sorted_months = sorted(trend_by_month.keys(),
+    sorted_months_en = sorted(trend_by_month.keys(),
                            key=lambda m: datetime.strptime(m, '%b %Y'))
-    trend_labels = sorted_months
-    trend_values = [round(trend_by_month[m], 2) for m in sorted_months]
+    
+    months_map = {'Jan': 'Ιαν', 'Feb': 'Φεβ', 'Mar': 'Μαρ', 'Apr': 'Απρ', 'May': 'Μάι', 'Jun': 'Ιούν', 'Jul': 'Ιούλ', 'Aug': 'Αύγ', 'Sep': 'Σεπ', 'Oct': 'Οκτ', 'Nov': 'Νοέ', 'Dec': 'Δεκ'}
+    trend_labels = []
+    for m in sorted_months_en:
+        parts = m.split()
+        if len(parts) == 2:
+            en_m, yr = parts
+            trend_labels.append(f"{months_map.get(en_m, en_m)} {yr}")
+        else:
+            trend_labels.append(m)
+            
+    trend_values = [round(trend_by_month[m], 2) for m in sorted_months_en]
 
     # ---- Chart: Cost Center breakdown ----
     cc_summary = get_cost_center_summary(award_query)

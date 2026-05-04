@@ -1,0 +1,75 @@
+{% if rfq.status in ['pending_delivery', 'received'] %}
+<h5 class="mt-5 mb-3"><i class="bi bi-box-seam me-2 text-primary"></i>Παραλαβή Υλικών</h5>
+<div class="card shadow-sm border-0 mb-5">
+    <div class="card-body p-0">
+        <form id="receiptForm" method="post" action="{{ url_for('company.save_receipt', req_id=rfq.id) }}">
+            <input type="hidden" id="finalizeReceiptInput" name="finalize_receipt" value="0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 text-center">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-start ps-4">Περιγραφή Είδους</th>
+                            <th>Ποσότητα Παραγγελίας</th>
+                            <th style="width: 180px;">Ποσότητα Παραλαβής</th>
+                            <th class="text-end pe-4">Κατάσταση</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                            {% if item.id in awards %}
+                            {% set aw = awards[item.id] %}
+                            {% set rec = receipts[item.id] if receipts and item.id in receipts else None %}
+                            {% set r_qty = rec.received_qty if rec and rec.received_qty else 0 %}
+                            {% set diff = aw.qty - r_qty %}
+                            <tr>
+                                <td class="text-start ps-4 fw-bold">{{ item.description }}</td>
+                                <td>{{ "%.2f"|format(aw.qty) }} {{ item.unit }}</td>
+                                <td>
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" step="0.01" min="0" max="{{ aw.qty }}" class="form-control text-end" name="recv_qty_{{ item.id }}" value="{{ "%.2f"|format(r_qty) if r_qty > 0 else '' }}" placeholder="0.00" {{ 'disabled' if rfq.status == 'received' }}>
+                                        <span class="input-group-text bg-light text-muted">{{ item.unit }}</span>
+                                    </div>
+                                </td>
+                                <td class="text-end pe-4">
+                                    {% if diff <= 0 %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                            <i class="bi bi-check-circle me-1"></i>Πλήρης
+                                        </span>
+                                    {% elif r_qty > 0 %}
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle text-dark">
+                                            <i class="bi bi-clock-history me-1"></i>Μερική ({{ "%.2f"|format(diff) }} υπόλοιπο)
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                            <i class="bi bi-x-circle me-1"></i>Εκκρεμεί
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if rfq.status == 'pending_delivery' %}
+            <div class="p-3 bg-light border-top d-flex justify-content-between align-items-center">
+                <small class="text-muted"><i class="bi bi-info-circle me-1 text-primary"></i>Αποθηκεύστε τις ποσότητες σταδιακά ή οριστικοποιήστε την παραλαβή.</small>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-outline-primary px-4 shadow-sm">
+                        <i class="bi bi-save me-1"></i>Αποθήκευση Ποσοτήτων
+                    </button>
+                    <button type="button" class="btn btn-success px-4 shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#receiptModal">
+                        <i class="bi bi-box-seam me-1"></i> Ολοκλήρωση Παραλαβής
+                    </button>
+                </div>
+            </div>
+            {% else %}
+            <div class="p-3 bg-success-subtle border-top text-success fw-bold text-center">
+                <i class="bi bi-check-all me-2"></i> Η παραλαβή έχει ολοκληρωθεί οριστικά!
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% endif %}

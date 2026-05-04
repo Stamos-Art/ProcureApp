@@ -20,10 +20,14 @@ def _status_value(status):
 # ============= RFQ STATE MACHINE =============
 
 RFQ_TRANSITIONS = {
+    RFQStatus.DRAFT.value: {
+        RFQStatus.PENDING.value: ['company', 'chief'],                     # Submit draft
+        RFQStatus.CANCELLED.value: ['company', 'chief'],                   # Cancel draft
+    },
     RFQStatus.PENDING.value: {
         RFQStatus.OPEN.value: ['chief'],                                    # Chief approves RFQ
         RFQStatus.DENIED.value: ['chief'],                                   # Chief rejects RFQ
-        RFQStatus.CANCELLED.value: ['company', 'creator'],                  # Creator cancels before approval
+        RFQStatus.CANCELLED.value: ['company', 'chief'],                  # Creator cancels before approval
     },
     RFQStatus.OPEN.value: {
         RFQStatus.CLOSED.value: ['company', 'chief'],                       # Auto-award (≤ limit) or Chief awards
@@ -36,13 +40,16 @@ RFQ_TRANSITIONS = {
         RFQStatus.OPEN.value: ['chief'],                                    # Chief rejects award, reopen bidding
     },
     RFQStatus.RETURNED_FOR_REVISION.value: {
-        RFQStatus.PENDING.value: ['creator', 'company'],                   # Creator edits and resubmits
+        RFQStatus.PENDING.value: ['company', 'chief'],                    # Creator resubmits
         RFQStatus.CANCELLED.value: ['company', 'chief'],                   # Can still be cancelled before republish
     },
     RFQStatus.DENIED.value: {
-        RFQStatus.PENDING.value: ['creator'],                               # Creator re-edits and resubmits
+        RFQStatus.PENDING.value: ['company', 'chief'],                    # Creator re-edits and resubmits
     },
-    RFQStatus.CLOSED.value: {},                                             # Terminal - no exit
+    RFQStatus.CLOSED.value: {
+        RFQStatus.RECEIVED.value: ['company', 'chief'],                  # Items received, fulfill procurement
+    },
+    RFQStatus.RECEIVED.value: {},                                          # Terminal - fulfilled
     RFQStatus.CANCELLED.value: {},                                          # Terminal - no exit
 }
 
@@ -184,7 +191,7 @@ def update_rfq_status(rfq, new_status, user_role, created_by=None):
         StatusValidator.validate_rfq_transition(rfq.status, new_status, user_role, created_by)
         rfq.status = _status_value(new_status)
         rfq.status_changed_at = datetime.utcnow()
-        return {'success': True, 'message': f'RFQ status updated to {new_status}'}
+        return {'success': True, 'message': f'Η κατάσταση της ζήτησης ενημερώθηκε σε: {new_status}'}
     except StatusTransitionError as e:
         return {'success': False, 'message': str(e)}
 
@@ -205,7 +212,7 @@ def update_bid_status(bid, new_status, user_role):
         StatusValidator.validate_bid_transition(bid.status, new_status, user_role)
         bid.status = _status_value(new_status)
         bid.status_changed_at = datetime.utcnow()
-        return {'success': True, 'message': f'Bid status updated to {new_status}'}
+        return {'success': True, 'message': f'Η κατάσταση της προσφοράς ενημερώθηκε σε: {new_status}'}
     except StatusTransitionError as e:
         return {'success': False, 'message': str(e)}
 

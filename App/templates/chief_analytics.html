@@ -233,10 +233,17 @@
 }
 </style>
 
+<!-- Navigation Actions -->
+<div class="mb-4">
+    <a href="{{ url_for('company.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Επιστροφή στον Πίνακα Ελέγχου
+    </a>
+</div>
+
 <!-- Hero Section -->
 <div class="analytics-hero">
     <div>
-        <h1 class="hero-title"><i class="bi bi-pie-chart-fill me-3 opacity-75"></i>Executive Analytics</h1>
+        <h1 class="hero-title"><i class="bi bi-pie-chart-fill me-3 opacity-75"></i>Αναλυτικά Στοιχεία Διοίκησης</h1>
         <p class="hero-subtitle">Ολοκληρωμένη επισκόπηση απόδοσης και εξόδων προμηθειών.</p>
     </div>
     
@@ -308,7 +315,7 @@
         <div class="chart-container">
             <div class="chart-header-row">
                 <div class="chart-icon"><i class="bi bi-graph-up-arrow"></i></div>
-                <h3 class="chart-title">Τάση Εξόδων (Spend Trend)</h3>
+                <h3 class="chart-title">Τάση Εξόδων</h3>
             </div>
             <div style="height: 320px; width: 100%; position: relative;">
                 <canvas id="trendChart"></canvas>

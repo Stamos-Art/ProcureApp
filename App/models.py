@@ -28,13 +28,14 @@ class BidStatus(str, Enum):
     ACCEPTED = 'accepted'                    # Chief awarded (winning bid)
     REJECTED = 'rejected'                    # Chief rejected (losing bid)
     REOPENED = 'reopened'                    # Legacy reopen marker (supplier-side revision)
+    DECLINED = 'declined'                    # Supplier declined to bid
 # --------------------------------------------------
 
 class User(db.Model):
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    display_name = db.Column(db.String(120), nullable=False)
+    display_name = db.Column(db.String(120), nullable=False, unique=True)
     role = db.Column(db.String(20), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
@@ -43,7 +44,8 @@ class User(db.Model):
     first_name = db.Column(db.String(120), nullable=True)
     last_name  = db.Column(db.String(120), nullable=True)
     approval_limit = db.Column(db.Numeric(12, 2), default=500.00)
-
+    
+    profile = db.relationship("SupplierProfile", backref="user", uselist=False, cascade="all, delete-orphan")
     bids = db.relationship("Bid", backref="supplier", lazy=True)
 
     def set_password(self, password: str):
@@ -57,7 +59,7 @@ class User(db.Model):
 class SupplierProfile(db.Model):
     __tablename__ = "supplier_profiles"
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), unique=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     company_name = db.Column(db.String(200))
     tax_id = db.Column(db.String(32))
     contact_name = db.Column(db.String(120))
@@ -74,7 +76,8 @@ class SupplierProfile(db.Model):
     reliability_score = db.Column(db.Numeric(3, 1), nullable=True)
     risk_level = db.Column(db.String(20), default='medium', nullable=False)
     risk_notes = db.Column(db.Text, nullable=True)
-    user = db.relationship("User", backref=db.backref("profile", uselist=False, cascade="all,delete"))
+    # The relationship is already defined in the User model via 'profile'
+    # and its backref 'user'. No need for a second one here.
 
 class CostCenter(db.Model):
     __tablename__ = "cost_centers"
@@ -144,7 +147,6 @@ class Bid(db.Model):
     status_changed_at = db.Column(db.DateTime, default=datetime.utcnow)
     overall_discount_type = db.Column(db.String(10), default='pct') 
     proposed_delivery_date = db.Column(db.DateTime, nullable=True) 
-    is_draft = db.Column(db.Boolean, default=False) 
     subtotal = db.Column(db.Numeric(12, 2), nullable=True)
     discount_total = db.Column(db.Numeric(12, 2), nullable=True)
     overall_discount_pct = db.Column(db.Numeric(5, 2), nullable=True)
@@ -153,6 +155,7 @@ class Bid(db.Model):
     vat_amount = db.Column(db.Numeric(12, 2), nullable=True)
     # ANALYTICS FIELDS
     rejection_reason = db.Column(db.String(100), nullable=True)
+    decline_reason = db.Column(db.String(255), nullable=True)
     bid_score = db.Column(db.Numeric(5, 2), nullable=True)
     is_rejected = db.Column(db.Boolean, default=False)
     lines = db.relationship("BidLine", backref="bid", cascade="all, delete-orphan", lazy=True)
@@ -250,6 +253,7 @@ class ItemAward(db.Model):
     request_item_id = db.Column(db.Integer, db.ForeignKey('request_items.id'), nullable=True)
     bid_id = db.Column(db.Integer, db.ForeignKey("bids.id"), nullable=False)
     bid_line_id = db.Column(db.Integer, db.ForeignKey("bid_lines.id"), nullable=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     supplier_name = db.Column(db.String(120), nullable=False)
     qty = db.Column(db.Numeric(12, 2), nullable=True)
     unit_price = db.Column(db.Numeric(12, 2), nullable=True)
@@ -258,6 +262,7 @@ class ItemAward(db.Model):
     bid = db.relationship("Bid", backref="item_awards", lazy=True)
     bid_line = db.relationship("BidLine", lazy='joined')
     request_item = db.relationship("RequestItem", lazy='joined')
+    supplier = db.relationship("User", foreign_keys=[supplier_id])
 
 class ItemReceipt(db.Model):
     __tablename__ = "item_receipts"

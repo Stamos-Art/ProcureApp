@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="mb-3">
+    <a href="{{ url_for('company.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Επιστροφή στον Πίνακα Ελέγχου
+    </a>
+</div>
+
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3 class="mb-0">Διαχείριση Χρηστών</h3>
     <a class="btn btn-success" href="{{ url_for('admin.user_new') }}"><i class="bi bi-person-plus"></i> Νέος Χρήστης</a>
@@ -15,7 +21,7 @@
         <div class="col-sm-4 col-md-3">
           <select class="form-select" name="role">
             <option value="all">Όλοι οι ρόλοι</option>
-            <option value="chief" {% if role_filter=='chief' %}selected{% endif %}>Chief</option>
+            <option value="chief" {% if role_filter=='chief' %}selected{% endif %}>Διευθυντής (Chief)</option>
             <option value="company" {% if role_filter=='company' %}selected{% endif %}>Company / Υπάλληλος</option>
             <option value="supplier" {% if role_filter=='supplier' %}selected{% endif %}>Supplier / Προμηθευτής</option>
           </select>
@@ -44,9 +50,9 @@
           <td class="fw-semibold">{{ u.username }}</td>
           <td>{{ u.display_name }}</td>
           <td>
-            {% if u.role == 'chief' %}<span class="badge text-bg-primary">Chief</span>
-            {% elif u.role == 'company' %}<span class="badge text-bg-secondary">Company</span>
-            {% elif u.role == 'supplier' %}<span class="badge text-bg-info">Supplier</span>
+            {% if u.role == 'chief' %}<span class="badge text-bg-primary">Διευθυντής</span>
+            {% elif u.role == 'company' %}<span class="badge text-bg-secondary">Υπάλληλος</span>
+            {% elif u.role == 'supplier' %}<span class="badge text-bg-info">Προμηθευτής</span>
             {% else %}<span class="badge text-bg-light text-dark">{{ u.role }}</span>{% endif %}
           </td>
           <td>

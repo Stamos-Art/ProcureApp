@@ -24,6 +24,7 @@ SUPPLIER_VISIBLE_RFQ_STATUSES = [
     RFQStatus.PENDING_FINAL_APPROVAL,
     RFQStatus.CLOSED,
     RFQStatus.RECEIVED,
+    RFQStatus.CANCELLED,
 ]
 
 # RFQ statuses that a supplier can open in the bid/detail page.
@@ -32,6 +33,7 @@ SUPPLIER_BID_PAGE_ALLOWED_STATUSES = [
     RFQStatus.PENDING_FINAL_APPROVAL,
     RFQStatus.CLOSED,
     RFQStatus.RECEIVED,
+    RFQStatus.CANCELLED,
 ]
 
 
@@ -51,6 +53,9 @@ def _get_supplier_rfq_status(rfq, bid, reopen_bid_ids, awarded_bid_ids=None):
     """Return the supplier-facing status label key for an RFQ row."""
     awarded_bid_ids = awarded_bid_ids or set()
 
+    if rfq.status == RFQStatus.CANCELLED:
+        return 'cancelled'
+
     if not bid:
         if rfq.status in [RFQStatus.CLOSED, RFQStatus.RECEIVED]:
             return 'no_bid'
@@ -69,7 +74,9 @@ def _get_supplier_rfq_status(rfq, bid, reopen_bid_ids, awarded_bid_ids=None):
     if bid.status == BidStatus.DRAFT:
         return 'draft'
     if bid.status == BidStatus.WITHDRAWN:
-        return 'rejected'
+        return 'cancelled' if rfq.status == RFQStatus.CANCELLED else 'rejected'
+    if bid.status == BidStatus.DECLINED:
+        return 'declined'
 
     return 'open'
 
@@ -195,7 +202,7 @@ def dashboard():
     per_page = 10
     status_filters = [
         v for v in _parse_multi_values(request.args, 'status')
-        if v in {'open', 'submitted', 'accepted', 'awarded', 'rejected', 'reopen', 'no_bid', 'draft'}
+        if v in {'open', 'submitted', 'accepted', 'awarded', 'rejected', 'reopen', 'no_bid', 'draft', 'declined'}
     ]
     q = (request.args.get('q') or '').strip()
     bid_state_filters = [v for v in _parse_multi_values(request.args, 'bid_state') if v in {'submitted', 'draft', 'reopen', 'rejected', 'no_bid'}]
@@ -296,7 +303,20 @@ def dashboard():
 
         filtered_rfqs = [r for r in filtered_rfqs if _deadline_bucket(r) in deadline_filters]
     
-    # Calculate statistics
+    # Calculate performance statistics
+    stats_total_bids = len([b for b in supplier_bids if b.status not in [BidStatus.DRAFT, BidStatus.DECLINED]])
+    stats_won_bids = len([b for b in supplier_bids if b.status == BidStatus.ACCEPTED])
+    stats_win_rate = (stats_won_bids / stats_total_bids * 100) if stats_total_bids > 0 else 0
+    stats_revenue = sum((b.subtotal or Decimal(0)) for b in supplier_bids if b.status == BidStatus.ACCEPTED)
+    
+    performance_stats = {
+        'total_bids': stats_total_bids,
+        'won_bids': stats_won_bids,
+        'win_rate': round(stats_win_rate, 1),
+        'total_revenue': stats_revenue
+    }
+
+    # Original counts for cards
     pending_count = 0
     submitted_count = 0
     bid_values = []
@@ -355,7 +375,7 @@ def dashboard():
     start_idx = (page - 1) * per_page
     paginated_rfqs = filtered_rfqs[start_idx : start_idx + per_page]
     
-    return render_template("supplier_dash_improved.html",
+    return render_template("supplier_dash.html",
                          rfqs=paginated_rfqs,
                          status_filters=status_filters,
                          q=q,
@@ -373,6 +393,7 @@ def dashboard():
                          avg_bid_value=avg_bid_value,
                          total_awards_value=total_awards_value,
                          win_rate=win_rate,
+                         performance_stats=performance_stats,
                          now=datetime.now())
 
 @supplier_bp.route("/history")
@@ -519,6 +540,13 @@ def bid(req_id):
         flash("Δεν έχετε δικαίωμα να υποβάλετε προσφορά σε αυτή τη ζήτηση.", "danger")
         return redirect(url_for('supplier.dashboard'))
     
+    # Strict Deadline Enforcement (GET & POST)
+    if rfq.submit_deadline and datetime.utcnow() > rfq.submit_deadline:
+        # Allow viewing if it's already closed/received, but block if it's still "open" but past deadline
+        if rfq.status == RFQStatus.OPEN:
+            flash("Η προθεσμία υποβολής προσφορών έχει λήξει.", "danger")
+            return redirect(url_for('supplier.dashboard'))
+    
     # Check if RFQ is still open
     is_locked = rfq.status not in [RFQStatus.OPEN, RFQStatus.PENDING_FINAL_APPROVAL]
     
@@ -535,7 +563,7 @@ def bid(req_id):
         # Check deadline
         is_past_deadline = False
         if rfq.submit_deadline:
-            is_past_deadline = datetime.now() > rfq.submit_deadline
+            is_past_deadline = datetime.utcnow() > rfq.submit_deadline
 
         if is_locked or is_past_deadline:
             flash("Η ζήτηση δεν δέχεται πλέον προσφορές (έχει λήξει η προθεσμία ή έχει κλείσει).", "danger")
@@ -558,7 +586,17 @@ def bid(req_id):
 
         reopen_revision = BidRevision.query.filter_by(bid_id=existing_bid.id).first() if existing_bid else None
 
-        if action == "reopen_draft" and existing_bid.status == BidStatus.REJECTED:
+        # Allow reopening if rejected OR if submitted but deadline hasn't passed
+        can_reopen = False
+        if existing_bid:
+            if existing_bid.status == BidStatus.REJECTED:
+                can_reopen = True
+            elif existing_bid.status == BidStatus.SUBMITTED:
+                # Check deadline
+                if rfq.submit_deadline and datetime.utcnow() < rfq.submit_deadline:
+                    can_reopen = True
+
+        if action == "reopen_draft" and can_reopen:
             payload = _build_reopen_payload_from_request(request.form, request.files, json.loads(reopen_revision.payload) if reopen_revision else None)
             if reopen_revision:
                 reopen_revision.payload = json.dumps(payload)
@@ -614,6 +652,21 @@ def bid(req_id):
                 return jsonify({"status": "info", "message": "Δεν απαιτείται αποθήκευση για απορριφθείσα"})
             flash("Η προσφορά παραμένει απορριφθείσα μέχρι να γίνει επανυποβολή.", "warning")
             return redirect(url_for('supplier.bid', req_id=req_id))
+
+        # Validate bid items
+        item_ids = request.form.getlist("item_id[]")
+        prices = request.form.getlist("price[]")
+        if not item_ids:
+            flash("Η προσφορά σας δεν περιέχει είδη.", "danger")
+            return redirect(url_for('supplier.bid', req_id=req_id))
+            
+        try:
+            has_positive_price = any(Decimal(p or 0) > 0 for p in prices)
+            if not has_positive_price:
+                flash("Πρέπει να ορίσετε τιμή σε τουλάχιστον ένα είδος (μεγαλύτερη από 0).", "danger")
+                return redirect(url_for('supplier.bid', req_id=req_id))
+        except:
+            pass
 
         # Normal persisted path (non-reopen or already-submitted edits).
         existing_bid.notes = request.form.get("notes", "")
@@ -925,7 +978,7 @@ def bid(req_id):
     if rfq.submit_deadline:
         is_past_deadline = datetime.now() > rfq.submit_deadline
     
-    return render_template("supplier_bid_improved.html",
+    return render_template("supplier_bid.html",
                          rfq=rfq,
                          bid=existing_bid,
                          readonly=is_locked or is_past_deadline,
@@ -954,4 +1007,49 @@ def bid(req_id):
                          receipt_summary=receipt_summary,
                          overall_discount_amount=overall_discount_amount,
                          final_award_total=final_award_total,
+                         now_ts=datetime.now(),
                          display_attachment_name=display_attachment_name)
+
+@supplier_bp.route("/requests/<int:req_id>/decline", methods=["POST"])
+@require_role("supplier")
+def decline_request(req_id):
+    """Supplier declines an RFQ with a reason."""
+    from models import User
+    
+    rfq = RequestRFQ.query.get_or_404(req_id)
+    username = session.get('username')
+    supplier_name = session.get('name')
+    supplier_user = User.query.filter_by(username=username).first()
+    
+    reason_main = request.form.get("reason", "No reason provided")
+    reason_other = request.form.get("other_reason", "").strip()
+    reason = f"{reason_main}: {reason_other}" if reason_other else reason_main
+    
+    # Get or create bid
+    existing_bid = Bid.query.filter_by(
+        request_id=req_id,
+        supplier_id=supplier_user.id if supplier_user else None
+    ).first()
+    
+    if not existing_bid:
+        existing_bid = Bid(
+            request_id=req_id,
+            supplier_id=supplier_user.id if supplier_user else None,
+            supplier_name=supplier_name,
+            price=Decimal(0),
+            status=BidStatus.DECLINED,
+            decline_reason=reason,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(existing_bid)
+    else:
+        existing_bid.status = BidStatus.DECLINED
+        existing_bid.decline_reason = reason
+        existing_bid.status_changed_at = datetime.utcnow()
+    
+    db.session.commit()
+    
+    log_action(req_id, f"Προμηθευτής {supplier_name}: Δεν ενδιαφέρεται (Λόγος: {reason})")
+    flash("Η δήλωση 'Δεν ενδιαφέρομαι' καταχωρήθηκε.", "info")
+    
+    return redirect(url_for('supplier.dashboard'))

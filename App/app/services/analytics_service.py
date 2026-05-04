@@ -189,7 +189,7 @@ def get_detailed_awards_list(award_query):
         awards_list.append({
             'rfq_id': award.bid.rfq.id,
             'supplier': award.supplier_name,
-            'cost_center': award.bid.rfq.cost_center.name if award.bid.rfq.cost_center else 'N/A',
+            'cost_center': award.bid.rfq.cost_center.name if award.bid.rfq.cost_center else 'Μ/Δ',
             'quantity': float(award.qty or 0),
             'unit_price': float(award.unit_price or 0),
             'line_total': float(award.line_total or 0),
@@ -235,7 +235,7 @@ def get_price_trends_by_supplier(award_query):
     trends = {}
     for award in award_query.all():
         supplier = award.supplier_name
-        month = award.created_at.strftime('%Y-%m') if award.created_at else 'N/A'
+        month = award.created_at.strftime('%Y-%m') if award.created_at else 'Μ/Δ'
         
         if supplier not in trends:
             trends[supplier] = {}
@@ -273,7 +273,7 @@ def calculate_rfq_trends():
     
     all_rfqs = RequestRFQ.query.all()
     for rfq in all_rfqs:
-        month = rfq.created_at.strftime('%Y-%m') if rfq.created_at else 'N/A'
+        month = rfq.created_at.strftime('%Y-%m') if rfq.created_at else 'Μ/Δ'
         trends_by_month[month] += 1
     
     sorted_months = sorted(trends_by_month.keys())
@@ -324,7 +324,7 @@ def calculate_supplier_risk_scores():
             'name': supplier_name,
             'risk_score': round(risk_score, 1),
             'reliability': perf.get('reliability_score', 50),
-            'risk_level': 'HIGH' if risk_score >= 70 else ('MEDIUM' if risk_score >= 40 else 'LOW')
+            'risk_level': 'ΥΨΗΛΟΣ' if risk_score >= 70 else ('ΜΕΣΑΙΟΣ' if risk_score >= 40 else 'ΧΑΜΗΛΟΣ')
         }
     
     return sorted(suppliers.values(), key=lambda x: x['risk_score'], reverse=True)
@@ -332,17 +332,17 @@ def calculate_supplier_risk_scores():
 def calculate_linear_trend(values):
     """Calculate if trend is UP or DOWN based on values"""
     if len(values) < 2:
-        return 'STABLE'
+        return 'ΣΤΑΘΕΡΗ'
     
     first_half = sum(values[:len(values)//2])
     second_half = sum(values[len(values)//2:])
     
     if second_half > first_half * 1.1:
-        return 'UP'
+        return 'ΑΝΟΔΙΚΗ'
     elif second_half < first_half * 0.9:
-        return 'DOWN'
+        return 'ΚΑΘΟΔΙΚΗ'
     else:
-        return 'STABLE'
+        return 'ΣΤΑΘΕΡΗ'
 
 def get_top_kpis():
     """Get main KPIs for overview tab"""

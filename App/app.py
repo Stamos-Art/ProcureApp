@@ -44,6 +44,8 @@ def migrate_db(app):
             
             if not _has_column(app, "bids", "rejection_reason"):
                 conn.exec_driver_sql("ALTER TABLE bids ADD COLUMN rejection_reason VARCHAR(100)")
+            if not _has_column(app, "bids", "decline_reason"):
+                conn.exec_driver_sql("ALTER TABLE bids ADD COLUMN decline_reason VARCHAR(255)")
             if not _has_column(app, "bids", "bid_score"):
                 conn.exec_driver_sql("ALTER TABLE bids ADD COLUMN bid_score NUMERIC(5,2)")
             if not _has_column(app, "bids", "is_rejected"):
@@ -59,6 +61,9 @@ def migrate_db(app):
                 conn.exec_driver_sql("ALTER TABLE supplier_profiles ADD COLUMN risk_level VARCHAR(20) DEFAULT 'medium'")
             if not _has_column(app, "supplier_profiles", "risk_notes"):
                 conn.exec_driver_sql("ALTER TABLE supplier_profiles ADD COLUMN risk_notes TEXT")
+            
+            if not _has_column(app, "item_awards", "supplier_id"):
+                conn.exec_driver_sql("ALTER TABLE item_awards ADD COLUMN supplier_id INTEGER REFERENCES users(id)")
 
 def init_db(app):
     with app.app_context():
