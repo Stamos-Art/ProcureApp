@@ -30,7 +30,7 @@ def is_editable_by_current_user(rfq) -> bool:
     """Check if current user can edit the RFQ"""
     if session.get("name") != rfq.created_by:
         return False
-    return rfq.status in [RFQStatus.PENDING, RFQStatus.RETURNED_FOR_REVISION, RFQStatus.DRAFT]
+    return rfq.status in [RFQStatus.PENDING, RFQStatus.RETURNED_FOR_REVISION, RFQStatus.DRAFT, RFQStatus.DENIED]
 
 
 def can_approve_rfq(rfq) -> bool:
@@ -44,24 +44,26 @@ def can_approve_rfq(rfq) -> bool:
 
 def get_phase_key(rfq) -> str:
     """Determine the workflow phase for an RFQ"""
-    if rfq.status == RFQStatus.CANCELLED:
+    status_val = rfq.status.value if hasattr(rfq.status, 'value') else rfq.status
+    
+    if status_val == RFQStatus.CANCELLED:
         return "cancelled"
-    if rfq.status == RFQStatus.DENIED:
+    if status_val == RFQStatus.DENIED:
         return "denied"
-    if rfq.status == RFQStatus.PENDING:
+    if status_val == RFQStatus.PENDING:
         return "awaiting_approval"
-    if rfq.status == RFQStatus.RETURNED_FOR_REVISION:
+    if status_val == RFQStatus.RETURNED_FOR_REVISION:
         return "returned_for_revision"
-    if rfq.status == RFQStatus.PENDING_FINAL_APPROVAL:
+    if status_val == RFQStatus.PENDING_FINAL_APPROVAL:
         return "pending_final_approval"
-    if rfq.status == RFQStatus.RECEIVED:
+    if status_val == RFQStatus.RECEIVED:
         return "received"
-    if rfq.status == RFQStatus.CLOSED:
-        return "awarded"
-    if rfq.status == RFQStatus.OPEN:
+    if status_val == RFQStatus.CLOSED:
+        return "pending_delivery"
+    if status_val == RFQStatus.OPEN:
         count_bids = len(rfq.bids or [])
         return "offers_received" if count_bids > 0 else "awaiting_offers"
-    return rfq.status
+    return status_val
 
 def phase_info(rfq):
     """Get phase information including label, badge, and icon"""
