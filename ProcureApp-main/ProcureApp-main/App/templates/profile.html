@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+                <div class="card-header bg-navy p-4 text-white d-flex align-items-center gap-3">
+                    <div class="user-avatar-lg bg-teal text-white rounded-circle d-flex align-items-center justify-content-center fw-bold fs-3" style="width: 64px; height: 64px;">
+                        {{ user.display_name[0].upper() }}
+                    </div>
+                    <div>
+                        <h3 class="mb-1">Το Προφίλ μου</h3>
+                        <p class="mb-0 opacity-75">Διαχείριση των στοιχείων του λογαριασμού σας</p>
+                    </div>
+                </div>
+                
+                <div class="card-body p-4 p-md-5">
+                    <form method="POST" id="profileForm">
+                        <!-- Βασικά Στοιχεία -->
+                        <div class="section-title mb-4">
+                            <h5 class="fw-bold text-navy border-bottom pb-2">
+                                <i class="bi bi-person-circle me-2"></i>Βασικά Στοιχεία
+                            </h5>
+                        </div>
+                        
+                        <div class="row g-4 mb-5">
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-bold">Username</label>
+                                <input type="text" class="form-control bg-light border-0" value="{{ user.username }}" disabled>
+                                <div class="form-text">Το όνομα χρήστη δεν μπορεί να αλλάξει.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-bold">Εμφανιζόμενο Όνομα</label>
+                                <input type="text" name="display_name" class="form-control" value="{{ user.display_name }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-bold">Ρόλος</label>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-navy-subtle text-navy px-3 py-2 rounded-pill">
+                                        {% if user.role == 'chief' %}Διευθυντής (Chief)
+                                        {% elif user.role == 'company' %}Υπάλληλος (Internal)
+                                        {% else %}Προμηθευτής (Supplier){% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            {% if user.role != 'supplier' %}
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-bold">Όριο Έγκρισης</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-0">€</span>
+                                    <input type="text" class="form-control bg-light border-0" value="{{ "{:,.2f}".format(user.approval_limit) if user.approval_limit else '0.00' }}" disabled>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Ασφάλεια -->
+                        <div class="section-title mb-4">
+                            <h5 class="fw-bold text-navy border-bottom pb-2">
+                                <i class="bi bi-shield-lock me-2"></i>Ασφάλεια
+                            </h5>
+                        </div>
+                        
+                        <div class="row g-4 mb-5">
+                            <div class="col-md-12">
+                                <label class="form-label text-secondary small fw-bold">Νέος Κωδικός Πρόσβασης</label>
+                                <input type="password" name="password" class="form-control" placeholder="Αφήστε κενό αν δεν θέλετε αλλαγή">
+                                <div class="form-text">Χρησιμοποιήστε τουλάχιστον 8 χαρακτήρες για μέγιστη ασφάλεια.</div>
+                            </div>
+                        </div>
+
+                        <!-- Στοιχεία Προμηθευτή (αν είναι supplier) -->
+                        {% if user.role == 'supplier' %}
+                        <div class="section-title mb-4">
+                            <h5 class="fw-bold text-navy border-bottom pb-2">
+                                <i class="bi bi-buildings me-2"></i>Στοιχεία Εταιρείας
+                            </h5>
+                        </div>
+                        
+                        <div class="row g-4 mb-5">
+                            <div class="col-md-8">
+                                <label class="form-label text-secondary small fw-bold">Επωνυμία Εταιρείας</label>
+                                <input type="text" name="company_name" class="form-control" value="{{ user.profile.company_name if user.profile else '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label text-secondary small fw-bold">ΑΦΜ</label>
+                                <input type="text" name="tax_id" class="form-control" value="{{ user.profile.tax_id if user.profile else '' }}">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label text-secondary small fw-bold">IBAN</label>
+                                <input type="text" name="iban" class="form-control" value="{{ user.profile.iban if user.profile else '' }}" placeholder="GR00 0000 0000 0000 0000 0000 000">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-bold">Υπεύθυνος Επικοινωνίας</label>
+                                <input type="text" name="contact_name" class="form-control" value="{{ user.profile.contact_name if user.profile else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-bold">Τηλέφωνο</label>
+                                <input type="text" name="phone" class="form-control" value="{{ user.profile.phone if user.profile else '' }}">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label text-secondary small fw-bold">Email Επικοινωνίας</label>
+                                <input type="email" name="email" class="form-control" value="{{ user.profile.email if user.profile else '' }}">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label text-secondary small fw-bold">Διεύθυνση</label>
+                                <input type="text" name="address" class="form-control" value="{{ user.profile.address if user.profile else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-bold">Πόλη</label>
+                                <input type="text" name="city" class="form-control" value="{{ user.profile.city if user.profile else '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-bold">Τ.Κ.</label>
+                                <input type="text" name="postal_code" class="form-control" value="{{ user.profile.postal_code if user.profile else '' }}">
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <button type="submit" class="btn btn-primary px-5 py-2 fw-bold rounded-pill">
+                                <i class="bi bi-check-lg me-2"></i>Αποθήκευση Αλλαγών
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-navy { background-color: #1a2a3a; }
+    .text-navy { color: #1a2a3a; }
+    .bg-navy-subtle { background-color: #e9ecef; }
+    .form-control:focus {
+        border-color: #1a2a3a;
+        box-shadow: 0 0 0 0.25rem rgba(26, 42, 58, 0.1);
+    }
+    .user-avatar-lg {
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}

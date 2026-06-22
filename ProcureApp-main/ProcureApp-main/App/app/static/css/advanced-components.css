@@ -1,0 +1,747 @@
+/**
+ * ╔══════════════════════════════════════════════════════════════════════════╗
+ * ║            PROCUREAPP - ADVANCED COMPONENTS & UTILITIES v1.0             ║
+ * ║                   Modals, Toasts, Loading States                          ║
+ * ╚══════════════════════════════════════════════════════════════════════════╝
+ */
+
+/* ═════════════════════════════════════════════════════════════════════════ */
+/* 1. MODAL DIALOGS */
+/* ═════════════════════════════════════════════════════════════════════════ */
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 400;
+  animation: fadeIn 200ms ease-out;
+}
+
+.modal-backdrop.show {
+  display: flex;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  width: 90%;
+  max-width: 600px;
+  animation: slideUp 300ms ease-out;
+  overflow: hidden;
+}
+
+.modal-content.modal-lg {
+  max-width: 800px;
+}
+
+.modal-content.modal-sm {
+  max-width: 400px;
+}
+
+.modal-header {
+  padding: 24px;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #0F3A5F 0%, #1D5FAE 100%);
+  color: white;
+}
+
+.modal-header h5 {
+  margin: 0;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+
+.modal-header .btn-close {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  color: white;
+  opacity: 0.7;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-header .btn-close:hover {
+  opacity: 1;
+}
+
+.modal-body {
+  padding: 24px;
+  color: #1F2937;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.modal-body p {
+  margin-bottom: 12px;
+}
+
+.modal-body p:last-child {
+  margin-bottom: 0;
+}
+
+.modal-body .modal-description {
+  color: #6B7280;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.modal-body .modal-field {
+  margin-bottom: 16px;
+}
+
+.modal-body .modal-field label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #1F2937;
+}
+
+.modal-body .modal-field input,
+.modal-body .modal-field select,
+.modal-body .modal-field textarea {
+  width: 100%;
+}
+
+.modal-footer {
+  padding: 20px 24px;
+  border-top: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background-color: #F9FAFB;
+}
+
+.modal-footer .btn {
+  padding: 10px 24px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  font-size: 14px;
+}
+
+/* Modal Icon Variants */
+.modal-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.modal-icon.success {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10B981;
+}
+
+.modal-icon.danger {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+}
+
+.modal-icon.warning {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #F59E0B;
+}
+
+.modal-icon.info {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #3B82F6;
+}
+
+/* Delete Confirmation Modal */
+.modal-delete-warning {
+  border-left: 4px solid #EF4444;
+}
+
+.modal-delete-warning .modal-header {
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+}
+
+.modal-delete-warning .modal-body {
+  background-color: rgba(239, 68, 68, 0.02);
+}
+
+.modal-delete-warning .text-danger {
+  color: #EF4444;
+  font-weight: 600;
+}
+
+/* Success Modal */
+.modal-success .modal-header {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+.modal-success .modal-body {
+  background-color: rgba(16, 185, 129, 0.02);
+  text-align: center;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════ */
+/* 2. TOAST NOTIFICATIONS */
+/* ═════════════════════════════════════════════════════════════════════════ */
+
+.toast-container {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 800;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 400px;
+}
+
+.toast {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  animation: slideInRight 300ms ease-out;
+  animation-fill-mode: forwards;
+}
+
+.toast.show {
+  opacity: 1;
+}
+
+.toast.hide {
+  animation: slideOutRight 300ms ease-in forwards;
+}
+
+.toast-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.toast-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-title {
+  font-weight: 600;
+  color: #1F2937;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.toast-message {
+  color: #6B7280;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.2s ease;
+}
+
+.toast-close:hover {
+  color: #1F2937;
+}
+
+.toast.toast-success {
+  border-left: 4px solid #10B981;
+  background: linear-gradient(to right, rgba(16, 185, 129, 0.02), transparent);
+}
+
+.toast.toast-success .toast-icon {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10B981;
+}
+
+.toast.toast-danger {
+  border-left: 4px solid #EF4444;
+  background: linear-gradient(to right, rgba(239, 68, 68, 0.02), transparent);
+}
+
+.toast.toast-danger .toast-icon {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+}
+
+.toast.toast-warning {
+  border-left: 4px solid #F59E0B;
+  background: linear-gradient(to right, rgba(245, 158, 11, 0.02), transparent);
+}
+
+.toast.toast-warning .toast-icon {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #F59E0B;
+}
+
+.toast.toast-info {
+  border-left: 4px solid #3B82F6;
+  background: linear-gradient(to right, rgba(59, 130, 246, 0.02), transparent);
+}
+
+.toast.toast-info .toast-icon {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #3B82F6;
+}
+
+.toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: currentColor;
+  border-radius: 0 0 8px 8px;
+  width: 100%;
+  opacity: 0.3;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════ */
+/* 3. LOADING STATES & SPINNERS */
+/* ═════════════════════════════════════════════════════════════════════════ */
+
+.spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+  border: 3px solid rgba(29, 95, 174, 0.2);
+  border-radius: 50%;
+  border-top-color: #1D5FAE;
+  animation: spin 1s linear infinite;
+}
+
+.spinner.spinner-sm {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+
+.spinner.spinner-lg {
+  width: 32px;
+  height: 32px;
+  border-width: 4px;
+}
+
+.spinner.spinner-white {
+  border-color: rgba(255, 255, 255, 0.2);
+  border-top-color: white;
+}
+
+.spinner.spinner-success {
+  border-color: rgba(16, 185, 129, 0.2);
+  border-top-color: #10B981;
+}
+
+.spinner.spinner-danger {
+  border-color: rgba(239, 68, 68, 0.2);
+  border-top-color: #EF4444;
+}
+
+.spinner-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  gap: 12px;
+}
+
+.spinner-text {
+  color: #6B7280;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Skeleton Loading */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #F3F4F6 0%,
+    #E5E7EB 50%,
+    #F3F4F6 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 4px;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-text {
+  height: 16px;
+  margin-bottom: 8px;
+}
+
+.skeleton-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.skeleton-card {
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.skeleton-card .skeleton-text:last-child {
+  margin-bottom: 0;
+}
+
+/* Pulse Loading */
+.pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.8);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  backdrop-filter: blur(4px);
+}
+
+.loading-overlay.show {
+  display: flex;
+}
+
+.loading-overlay-content {
+  text-align: center;
+}
+
+.loading-overlay-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: #1D5FAE;
+  animation: spin 1s linear infinite;
+}
+
+.loading-overlay-text {
+  color: #6B7280;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* Button Loading State */
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn.loading {
+  position: relative;
+  color: transparent;
+  transition: all 0.3s ease;
+}
+
+.btn.loading::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 50%;
+  left: 50%;
+  margin-left: -8px;
+  margin-top: -8px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top: 2px solid white;
+  animation: spin 1s linear infinite;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════ */
+/* 4. ADVANCED ANIMATIONS */
+/* ═════════════════════════════════════════════════════════════════════════ */
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ═════════════════════════════════════════════════════════════════════════ */
+/* 5. DROPDOWN & POPOVER */
+/* ═════════════════════════════════════════════════════════════════════════ */
+
+.dropdown-menu {
+  position: absolute;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  min-width: 200px;
+  z-index: 100;
+  display: none;
+  flex-direction: column;
+  animation: slideDown 200ms ease-out;
+}
+
+.dropdown-menu.show {
+  display: flex;
+}
+
+.dropdown-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  color: #1F2937;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.dropdown-item:hover {
+  background-color: #F3F4F6;
+  color: #1D5FAE;
+}
+
+.dropdown-item:first-child {
+  border-radius: 8px 8px 0 0;
+}
+
+.dropdown-item:last-child {
+  border-radius: 0 0 8px 8px;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: #E5E7EB;
+  margin: 4px 0;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════ */
+/* 6. POPOVERS & TOOLTIPS */
+/* ═════════════════════════════════════════════════════════════════════════ */
+
+.popover {
+  position: absolute;
+  background: white;
+  border: 1px solid #D1D5DB;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #1F2937;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 600;
+  display: none;
+  max-width: 300px;
+  animation: fadeIn 200ms ease-out;
+}
+
+.popover.show {
+  display: block;
+}
+
+.popover::before {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.tooltip {
+  position: absolute;
+  background: #1F2937;
+  color: white;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 700;
+  display: none;
+  white-space: nowrap;
+  animation: fadeIn 150ms ease-out;
+}
+
+.tooltip.show {
+  display: block;
+}
+
+.tooltip::before {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #1F2937;
+  border-radius: 1px;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════ */
+/* 7. PROGRESS INDICATORS */
+/* ═════════════════════════════════════════════════════════════════════════ */
+
+.progress {
+  height: 6px;
+  background-color: #E5E7EB;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #1D5FAE, #00A8E8);
+  width: 0%;
+  transition: width 0.3s ease;
+  border-radius: 9999px;
+}
+
+.progress-bar.success {
+  background: linear-gradient(90deg, #10B981, #059669);
+}
+
+.progress-bar.danger {
+  background: linear-gradient(90deg, #EF4444, #DC2626);
+}
+
+.progress-bar.warning {
+  background: linear-gradient(90deg, #F59E0B, #D97706);
+}
+
+/* Indeterminate Progress */
+.progress.indeterminate .progress-bar {
+  animation: indeterminate 2s linear infinite;
+  width: 30%;
+}
+
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+/* ═════════════════════════════════════════════════════════════════════════ */
+/* 8. RESPONSIVE ADJUSTMENTS */
+/* ═════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    max-width: 100%;
+  }
+
+  .modal-content.modal-lg {
+    max-width: 100%;
+  }
+
+  .toast-container {
+    right: 12px;
+    left: 12px;
+    top: 12px;
+    max-width: 100%;
+  }
+
+  .toast {
+    padding: 12px;
+    font-size: 13px;
+  }
+
+  .dropdown-menu {
+    min-width: 150px;
+  }
+}
+
+/* ═════════════════════════════════════════════════════════════════════════ */
+/* END OF ADVANCED COMPONENTS */
+/* ═════════════════════════════════════════════════════════════════════════ */
