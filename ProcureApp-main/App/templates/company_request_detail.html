@@ -1,0 +1,682 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>Ζήτηση #{{ rfq.id }} - {{ rfq.title }}</h3>
+    <div class="d-flex align-items-center gap-3">
+        {% if rfq.status in ['closed', 'received'] %}
+        <a href="{{ url_for('company.view_po', req_id=rfq.id) }}" class="btn btn-primary shadow-sm">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Δελτίο Παραγγελίας (PO)
+        </a>
+        {% endif %}
+        <span class="{{ phase_info(rfq).badge }} fs-6">
+            <i class="bi {{ phase_info(rfq).icon }} me-1"></i> {{ phase_info(rfq).label }}
+        </span>
+    </div>
+</div>
+
+<p class="text-muted mb-4 small">
+    Δημιουργός: {{ rfq.created_by }} | {{ rfq.created_at.strftime('%d/%m/%Y %H:%M') if rfq.created_at else '' }}
+</p>
+
+{% if rfq.status == 'returned_for_revision' and rfq.denial_reason %}
+<div class="alert alert-warning border-warning shadow-sm mb-4">
+    <div class="fw-bold mb-1"><i class="bi bi-exclamation-triangle me-1"></i>Αιτιολογία Επιστροφής για Αναθεώρηση</div>
+    <div class="small">{{ rfq.denial_reason }}</div>
+</div>
+{% endif %}
+
+{% set can_approve_actions = can_approve_rfq(rfq) %}
+{% set can_modify = can_approve_actions and rfq.status not in ['closed', 'received', 'cancelled'] and (rfq.status != 'pending_final_approval' or session.get('role') == 'chief') %}
+
+{% include 'partials/_rfq_info.html' %}
+
+{% include 'partials/_items_table.html' %}
+
+{% include 'partials/_receipt_section.html' %}
+
+{% include 'partials/_award_summary.html' %}
+
+{% if session.get('role') == 'chief' and rfq.status == 'pending' %}
+<div class="card border-warning shadow-sm my-5">
+    <div class="card-body d-flex align-items-center justify-content-between p-4">
+        <div>
+            <h5 class="fw-bold"><i class="bi bi-shield-lock me-2 text-warning"></i>Έγκριση Ζήτησης</h5>
+            <p class="text-muted small mb-0">Ελέγξτε τα είδη και τα στοιχεία πριν την δημοσίευση στους προμηθευτές.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <form method="post" action="{{ url_for('admin.approve', req_id=rfq.id) }}">
+                <button type="submit" class="btn btn-success px-4 shadow-sm fw-bold"><i class="bi bi-check-lg me-1"></i>Έγκριση</button>
+            </form>
+            <button class="btn btn-danger px-4 shadow-sm fw-bold" data-bs-toggle="collapse" data-bs-target="#denySection">
+                <i class="bi bi-x-lg me-1"></i> Απόρριψη
+            </button>
+        </div>
+    </div>
+    <div class="collapse p-4 border-top bg-light" id="denySection">
+        <form method="post" action="{{ url_for('admin.deny', req_id=rfq.id) }}">
+            <div class="input-group">
+                <input type="text" name="reason" class="form-control" placeholder="Λόγος απόρριψης..." required>
+                <button type="submit" class="btn btn-danger text-white px-4">Επιβεβαίωση</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% include 'partials/_bid_section.html' %}
+
+<div class="d-flex align-items-center gap-2 mt-5 mb-4 p-3 bg-white border rounded shadow-sm">
+    {% if is_editable_by_current_user(rfq) or session.get('role') == 'chief' %}
+        {% if rfq.status not in ['closed', 'received', 'cancelled'] %}
+        <a href="{{ url_for('company.edit_request', req_id=rfq.id) }}" class="btn btn-primary px-4 shadow-sm">
+            <i class="bi bi-pencil-square me-1"></i> Επεξεργασία
+        </a>
+        {% endif %}
+    {% endif %}
+
+    <a href="{{ url_for('company.new_request', clone_id=rfq.id) }}" class="btn btn-outline-info px-4 shadow-sm text-dark">
+        <i class="bi bi-copy me-1"></i> Δημιουργία Αντιγράφου
+    </a>
+
+    {% if (is_editable_by_current_user(rfq) or session.get('role') == 'chief') and rfq.status not in ['closed', 'received', 'cancelled'] %}
+    <button type="button" class="btn btn-outline-danger px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#cancelModal">
+        <i class="bi bi-trash3 me-1"></i> Ακύρωση Ζήτησης
+    </button>
+    {% endif %}
+
+    <button type="button" class="btn btn-outline-secondary px-4 shadow-sm text-dark ms-2" data-bs-toggle="modal" data-bs-target="#auditModal">
+        <i class="bi bi-clock-history me-1"></i> Ιστορικό Ενεργειών
+    </button>
+
+    <div class="ms-auto d-flex gap-2">
+        <a href="{{ url_for('company.dashboard') }}" class="btn btn-outline-secondary px-4 shadow-sm">Επιστροφή</a>
+
+        {% if rfq.status == 'pending_final_approval' %}
+            {% if session.get('role') == 'chief' %}
+                <button type="button" class="btn btn-warning px-4 shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#revertApprovalModal">
+                    <i class="bi bi-arrow-return-left me-1"></i> Επιστροφή για Αναθεώρηση
+                </button>
+                <form method="post" action="{{ url_for('admin.approve_final', req_id=rfq.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-success px-4 shadow-sm fw-bold">
+                        <i class="bi bi-shield-check me-1"></i> Έγκριση & Κλείσιμο
+                    </button>
+                </form>
+            {% else %}
+                <button class="btn btn-secondary px-4 shadow-sm fw-bold" disabled>
+                    <i class="bi bi-hourglass-split me-1"></i> Αναμονή έγκρισης προϋπολογισμού
+                </button>
+            {% endif %}
+
+        {% elif rfq.status not in ['closed', 'received', 'cancelled'] and awarded_summary %}
+            {% if session.get('role') == 'chief' %}
+                <button type="button" class="btn btn-success px-4 shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#chiefeFinalizeSummaryModal">
+                    <i class="bi bi-check2-all me-1"></i> Οριστική Ανάθεση & Κλείσιμο
+                </button>
+            {% elif can_approve_actions %}
+                <button type="button" class="btn btn-success px-4 shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#finalizeModal">
+                    <i class="bi bi-check-circle-fill me-1"></i> Οριστική Ανάθεση
+                </button>
+            {% else %}
+                <button class="btn btn-secondary px-4 shadow-sm fw-bold" disabled title="Μόνο ο δημιουργός της ζήτησης μπορεί να εγκρίνει.">
+                    <i class="bi bi-lock me-1"></i> Χωρίς δικαίωμα έγκρισης
+                </button>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+{% if rfq.status not in ['closed', 'received', 'cancelled'] and awarded_summary and session.get('role') == 'chief' %}
+<div class="modal fade" id="chiefeFinalizeSummaryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-clipboard-check me-2"></i>Σύνοψη Αναθέσεων - Τελική Επιβεβαίωση</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="fs-6 mb-3">Επιβεβαίωση αποστολής στους προμηθευτές:</p>
+        
+        <div class="table-responsive mb-3">
+          <table class="table table-sm table-bordered">
+            <thead class="table-light">
+              <tr class="text-center fw-bold">
+                <th>Προμηθευτής</th>
+                <th>Αριθμός Ειδών</th>
+                <th>Συνολικό Κόστος (€)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sup, data in awarded_summary.items() %}
+              <tr>
+                <td><strong>{{ sup }}</strong></td>
+                <td class="text-center">{{ data['items']|length }}</td>
+                <td class="text-end"><strong>{{ "%.2f"|format(data.final_total) }}</strong> €</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot class="table-light">
+              <tr class="fw-bold">
+                <td colspan="2" class="text-end">Σύνολο:</td>
+                <td class="text-end">{{ "%.2f"|format(grand_total_awarded) }} €</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="alert alert-info mb-3">
+          <i class="bi bi-info-circle me-2"></i>
+          <strong>Σημείωση:</strong> Οι προμηθευτές θα λάβουν ειδοποίηση με τα στοιχεία της ανάθεσης και τα items που τους αναλογούν.
+        </div>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Ακύρωση</button>
+        <form method="post" action="{{ url_for('company.finalize_award', req_id=rfq.id) }}" style="display: inline;">
+            <button type="submit" class="btn btn-success px-4 fw-bold"><i class="bi bi-lock-fill me-1"></i>Οριστική Επιβεβαίωση</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if rfq.status == 'pending_final_approval' and session.get('role') == 'chief' %}
+<div class="modal fade" id="revertApprovalModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title fw-bold"><i class="bi bi-arrow-return-left me-2"></i>Επιστροφή για Αναθεώρηση</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{{ url_for('admin.revert_approval', req_id=rfq.id) }}">
+                <div class="modal-body p-4">
+                    <label class="form-label fw-bold mb-2">Αιτιολογία (υποχρεωτικό)</label>
+                    <textarea class="form-control" name="revert_reason" rows="4" placeholder="Περιγράψτε τι πρέπει να διορθωθεί πριν την έγκριση..." required></textarea>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Άκυρο</button>
+                    <button type="submit" class="btn btn-warning px-4 fw-bold"><i class="bi bi-send me-1"></i>Αποστολή για Αναθεώρηση</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if rfq.status not in ['closed', 'received', 'cancelled'] and awarded_summary and session.get('role') != 'chief' and can_approve_actions %}
+<div class="modal fade" id="finalizeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-check2-all me-2"></i>Επιβεβαίωση Οριστικής Ανάθεσης</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="fs-6">Είστε σίγουροι ότι θέλετε να οριστικοποιήσετε την ανάθεση για τη ζήτηση <strong>#{{ rfq.id }}</strong>; 
+        <br><span class="text-muted small">Αν το ποσό υπερβαίνει το προσωπικό σας όριο, θα ζητηθεί έγκριση από τον Διευθυντή.</span></p>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Άκυρο</button>
+        <form method="post" action="{{ url_for('company.finalize_award', req_id=rfq.id) }}">
+            <button type="submit" class="btn btn-success px-4 fw-bold"><i class="bi bi-lock-fill me-1"></i>Επιβεβαίωση</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if rfq.status == 'closed' %}
+<div class="modal fade" id="receiptModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-box-seam me-2"></i>Ολοκλήρωση Παραλαβής</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="fs-6">Είστε σίγουροι ότι θέλετε να οριστικοποιήσετε την παραλαβή για τη ζήτηση <strong>#{{ rfq.id }}</strong>;</p>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Άκυρο</button>
+        <button type="button" class="btn btn-success px-4 fw-bold" onclick="document.getElementById('finalizeReceiptInput').value='1'; document.getElementById('receiptForm').submit();">
+            <i class="bi bi-check-lg me-1"></i>Επιβεβαίωση
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle me-2"></i>Ακύρωση Ζήτησης</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="fs-6">Είστε σίγουροι ότι θέλετε να ακυρώσετε/διαγράψετε τη ζήτηση <strong>#{{ rfq.id }}</strong>;</p>
+        <div class="alert alert-danger small mb-0 shadow-sm border-danger">
+            <i class="bi bi-info-circle-fill me-1"></i> Η ζήτηση θα παραμείνει στο σύστημα για ιστορικούς λόγους, αλλά θα απενεργοποιηθεί οριστικά.
+        </div>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Επιστροφή</button>
+        <form method="post" action="{{ url_for('company.cancel_request', req_id=rfq.id) }}">
+            <button type="submit" class="btn btn-danger px-4 fw-bold"><i class="bi bi-trash3 me-1"></i>Επιβεβαίωση Ακύρωσης</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="auditModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title fw-bold text-dark"><i class="bi bi-journal-text me-2"></i>Ιστορικό Ζήτησης #{{ rfq.id }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <ul class="list-group list-group-flush">
+            {% for log in rfq.logs %}
+            <li class="list-group-item p-3">
+                <div class="d-flex justify-content-between mb-1">
+                    <strong class="text-primary small"><i class="bi bi-person-fill me-1"></i>{{ log.user_name }}</strong>
+                    <span class="text-muted" style="font-size: 0.75rem;">{{ log.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                </div>
+                <p class="mb-0 text-dark small">{{ log.action }}</p>
+            </li>
+            {% else %}
+            <li class="list-group-item p-4 text-center text-muted">Δεν βρέθηκαν καταγραφές ιστορικού.</li>
+            {% endfor %}
+        </ul>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Κλείσιμο</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bid Rejection Modals (one per bid) -->
+{% for bid in bids %}
+{% if session.get('role') in ['chief', 'company'] and can_approve_actions and rfq.status in ['open', 'pending_final_approval', 'returned_for_revision'] and bid.status == 'submitted' %}
+<div class="modal fade" id="rejectBidModal{{ bid.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-x-circle me-2"></i>Απόρριψη Προσφοράς</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{{ url_for('company.reject_bid', req_id=rfq.id, bid_id=bid.id) }}">
+        <div class="modal-body p-4">
+          <p class="mb-3"><strong>Προμηθευτής:</strong> {{ bid.supplier_name }}</p>
+          <label class="form-label fw-bold mb-2">Λόγος Απόρριψης (προαιρετικά)</label>
+          <textarea class="form-control" name="rejection_reason" rows="3" placeholder="π.χ. Τιμή εκτός προϋπολογισμού, μη συμμόρφωση προδιαγραφών..."></textarea>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Άκυρο</button>
+          <button type="submit" class="btn btn-danger px-4 fw-bold"><i class="bi bi-x-lg me-1"></i>Επιβεβαίωση Απόρριψης</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="acceptBidModal{{ bid.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-check-circle me-2"></i>Αποδοχή Προσφοράς</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{{ url_for('company.accept_bid_only', req_id=rfq.id, bid_id=bid.id) }}">
+        <div class="modal-body p-4 text-center">
+          <p class="mb-3">Είστε βέβαιοι για την αποδοχή της προσφοράς από τον προμηθευτή <strong>{{ bid.supplier_name }}</strong>;</p>
+          <p class="text-muted small">Η προσφορά θα σημειωθεί ως "Αποδεκτή" και στη συνέχεια θα μπορείτε να προχωρήσετε στην ανάθεση των ειδών.</p>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Άκυρο</button>
+          <button type="submit" class="btn btn-success px-4 fw-bold"><i class="bi bi-check2 me-1"></i>Επιβεβαίωση Αποδοχής</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<script>
+const pageKey = window.location.pathname;
+const accordionsKey = 'openAccordions_' + pageKey;
+const scrollKey = 'scrollPos_' + pageKey;
+
+// Αποθήκευση κατάστασης σελίδας (ανοιχτά accordions & scroll position) πριν την ανανέωση
+function savePageState() {
+    const openBids = Array.from(document.querySelectorAll('.collapse.show')).map(el => el.id);
+    sessionStorage.setItem(accordionsKey, JSON.stringify(openBids));
+    sessionStorage.setItem(scrollKey, window.scrollY);
+}
+
+// AJAX Award/Unaward Button Handler with Toggle and Auto-Refresh
+function attachAwardButtonListener(button) {
+    button.addEventListener('click', async function(e) {
+        e.preventDefault();
+        const reqId = this.dataset.reqId;
+        const requestItemId = this.dataset.requestItemId;
+        const bidLineId = this.dataset.bidLineId;
+        const bidId = this.dataset.bidId;
+        
+        // Disable button to prevent double-click
+        button.disabled = true;
+        button.style.opacity = '0.6';
+        
+        try {
+            const formData = new FormData();
+            if (requestItemId) formData.append('request_item_id', requestItemId);
+            if (bidLineId) formData.append('bid_line_id', bidLineId);
+            if (bidId) formData.append('bid_id', bidId);
+            
+            const response = await fetch(`/company/requests/${reqId}/award-item-ajax`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                showAlert('Ανατέθηκε! ✓', 'success');
+                savePageState();
+                setTimeout(() => {
+                    window.location.reload();
+                }, 400);
+            } else {
+                showAlert(data.message || 'Σφάλμα κατά την ανάθεση', 'danger');
+                button.disabled = false;
+                button.style.opacity = '1';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('Σφάλμα επικοινωνίας με το διακομιστή', 'danger');
+            button.disabled = false;
+            button.style.opacity = '1';
+        }
+    });
+}
+
+function attachUnawardButtonListener(button) {
+    button.addEventListener('click', async function(e) {
+        e.preventDefault();
+        const reqId = this.dataset.reqId;
+        const requestItemId = this.dataset.requestItemId;
+        const bidId = this.dataset.bidId;
+        
+        // Disable button to prevent double-click
+        button.disabled = true;
+        button.style.opacity = '0.6';
+        
+        try {
+            const formData = new FormData();
+            if (requestItemId) formData.append('request_item_id', requestItemId);
+            if (bidId) formData.append('bid_id', bidId);
+            
+            const response = await fetch(`/company/requests/${reqId}/unaward-item`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                showAlert('Ακύρωση ✓', 'success');
+                savePageState();
+                setTimeout(() => {
+                    window.location.reload();
+                }, 400);
+            } else {
+                showAlert(data.message || 'Σφάλμα κατά την ακύρωση', 'danger');
+                button.disabled = false;
+                button.style.opacity = '1';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('Σφάλμα επικοινωνίας με το διακομιστή', 'danger');
+            button.disabled = false;
+            button.style.opacity = '1';
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Επαναφορά κατάστασης αν υπάρχει
+    const openBids = JSON.parse(sessionStorage.getItem(accordionsKey) || '[]');
+    openBids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('show');
+    });
+    
+    const scrollPos = sessionStorage.getItem(scrollKey);
+    if (scrollPos) {
+        setTimeout(() => window.scrollTo(0, parseInt(scrollPos)), 50);
+        sessionStorage.removeItem(scrollKey);
+    }
+
+    // 2. Παρακολούθηση των ανοιγμάτων/κλεισιμάτων για άμεση ενημέρωση του storage
+    document.querySelectorAll('.collapse').forEach(el => {
+        el.addEventListener('shown.bs.collapse', function() {
+            let open = JSON.parse(sessionStorage.getItem(accordionsKey) || '[]');
+            if (!open.includes(this.id)) {
+                open.push(this.id);
+                sessionStorage.setItem(accordionsKey, JSON.stringify(open));
+            }
+        });
+        el.addEventListener('hidden.bs.collapse', function() {
+            let open = JSON.parse(sessionStorage.getItem(accordionsKey) || '[]');
+            open = open.filter(id => id !== this.id);
+            sessionStorage.setItem(accordionsKey, JSON.stringify(open));
+        });
+    });
+
+    // 3. Προσθήκη events στα κουμπιά
+    document.querySelectorAll('.award-button').forEach(button => {
+        attachAwardButtonListener(button);
+    });
+    
+    document.querySelectorAll('.unaward-button').forEach(button => {
+        attachUnawardButtonListener(button);
+    });
+});
+
+// Update awarded summary via AJAX
+async function updatePendingDeliverySummary(reqId) {
+    try {
+        const response = await fetch(`/company/requests/${reqId}/get-award-data`);
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update the summary box with new data
+            const summaryBox = document.getElementById('awardSummaryBox');
+            if (summaryBox) {
+                // Update initial subtotal
+                const initialSubtotalEl = document.getElementById('summaryInitialSubtotal');
+                if (initialSubtotalEl) {
+                    initialSubtotalEl.textContent = (data.initial_subtotal).toFixed(2) + ' €';
+                }
+                
+                // Update grand total
+                const grandTotalEl = document.getElementById('summaryGrandTotal');
+                if (grandTotalEl) {
+                    grandTotalEl.textContent = (data.grand_total_awarded).toFixed(2) + ' €';
+                }
+                
+                // Update supplier details
+                const detailsList = summaryBox.querySelector('.summary-details-list');
+                if (detailsList && Object.keys(data.awarded_summary).length > 0) {
+                    let html = '';
+                    for (const [sup, summary] of Object.entries(data.awarded_summary)) {
+                        html += `
+                        <div class="mb-3 pb-2 border-bottom border-light summary-supplier-item">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong class="text-dark"><i class="bi bi-shop me-1"></i>${sup}</strong>
+                                <span class="badge bg-light text-dark border">${summary.final_total.toFixed(2)} €</span>
+                            </div>
+                            <div class="ms-3 small text-muted">
+                                <div class="d-flex justify-content-between">
+                                    <span>Αξία Ειδών:</span>
+                                    <span>${summary.items_subtotal_before_discount.toFixed(2)} €</span>
+                                </div>`;
+                        
+                        if (summary.items_total_discount > 0) {
+                            html += `<div class="d-flex justify-content-between text-danger">
+                                        <span>Εκπτώσεις Ειδών:</span>
+                                        <span>-${summary.items_total_discount.toFixed(2)} €</span>
+                                     </div>`;
+                        }
+                        if (summary.overall_discount > 0) {
+                            html += `<div class="d-flex justify-content-between text-danger">
+                                        <span>Συνολική Έκπτωση:</span>
+                                        <span>-${summary.overall_discount.toFixed(2)} €</span>
+                                     </div>`;
+                        }
+                        if (summary.combo_total > 0) {
+                            html += `<div class="d-flex justify-content-between text-info">
+                                        <span>Μεταφορικά:</span>
+                                        <span>+${summary.combo_total.toFixed(2)} €</span>
+                                     </div>`;
+                        }
+                        html += `</div></div>`;
+                    }
+                    detailsList.innerHTML = html;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error updating summary:', error);
+    }
+}
+
+// Show toast notification
+function showAlert(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+
+</script>
+
+<script>
+/* ══════════════════════════════════════════════
+   CONFIRM DIALOGS  — company_request_detail
+   Uses the global showConfirm() from base_premium.html
+   ══════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function() {
+
+    /* ── 1. APPROVE (chief) ── */
+    document.querySelectorAll('form[action*="admin.approve"] button[type="submit"]').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = this.closest('form');
+            showConfirm({
+                title: 'Έγκριση Ζήτησης',
+                msg:   'Θέλετε να εγκρίνετε αυτή τη ζήτηση και να τη στείλετε στους προμηθευτές;',
+                icon:  '✅',
+                danger: false,
+                onConfirm: () => form.submit()
+            });
+        });
+    });
+
+    /* ── 2. ACCEPT BID ── */
+    document.querySelectorAll('form[action*="accept_bid"] button[type="submit"]').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = this.closest('form');
+            showConfirm({
+                title:  'Αποδοχή Προσφοράς',
+                msg:    'Επιβεβαιώνετε ότι θέλετε να αποδεχθείτε αυτή την προσφορά ως νικητήρια;',
+                icon:   '🏆',
+                danger: false,
+                onConfirm: () => form.submit()
+            });
+        });
+    });
+
+    /* ── 3. AWARD ALL FROM BID ── */
+    document.querySelectorAll('form[action*="award_all_from_bid"] button[type="submit"]').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = this.closest('form');
+            showConfirm({
+                title:  'Ανάθεση Ολόκληρης Προσφοράς',
+                msg:    'Θέλετε να αναθέσετε όλα τα είδη αυτής της προσφοράς;',
+                icon:   '📋',
+                danger: false,
+                onConfirm: () => form.submit()
+            });
+        });
+    });
+
+    /* ── 4. APPROVE FINAL (Budget Approval & Close) ── */
+    document.querySelectorAll('form[action*="approve_final"] button[type="submit"]').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = this.closest('form');
+            showConfirm({
+                title:  'Οριστική Οικονομική Έγκριση',
+                msg:    'Η ενέργεια αυτή είναι μη αναστρέψιμη. Θέλετε να εγκρίνετε οριστικά και να κλείσετε τη ζήτηση;',
+                icon:   '🔒',
+                danger: true,
+                onConfirm: () => form.submit()
+            });
+        });
+    });
+
+    /* ── 5. CONFIRM RECEIPT (Mark as Received) ── */
+    document.querySelectorAll('#receiptModal .btn-success').forEach(btn => {
+        // already inside a modal so the confirm is the modal itself — no extra dialog needed
+        // but intercept the "finalize" click inside the receipt modal for extra safety
+        btn.addEventListener('click', function() {
+            // The button already calls finalizeReceiptInput + form.submit()
+            // Wrap with showConfirm only if it has the direct onclick
+            if (!this.dataset.confirmAdded) {
+                this.dataset.confirmAdded = '1';
+                const orig = this.getAttribute('onclick');
+                if (orig) {
+                    this.removeAttribute('onclick');
+                    this.addEventListener('click', function innerClick(ev) {
+                        ev.stopImmediatePropagation();
+                        showConfirm({
+                            title:  'Επιβεβαίωση Παραλαβής',
+                            msg:    'Επιβεβαιώνετε ότι τα είδη παραλήφθηκαν;',
+                            icon:   '📦',
+                            danger: false,
+                            onConfirm: () => { eval(orig); }
+                        });
+                    }, { once: true });
+                }
+            }
+        });
+    });
+});
+</script>
+
+{% endblock %}

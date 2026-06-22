@@ -1,0 +1,403 @@
+{% extends "base.html" %}
+
+{% block title %}Πίνακας Ελέγχου Προμηθευτή{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-8">
+  <div>
+    <h1 class="mb-2" style="color: var(--color-navy);">
+      <i class="bi bi-person-badge-fill me-3" style="color: var(--color-teal);"></i>Καλώς ήρθατε πίσω!
+    </h1>
+    <p class="text-secondary mb-0">Εδώ είναι η τρέχουσα κατάστασή σας και οι ανοιχτές ζητήσεις.</p>
+  </div>
+</div>
+
+<!-- Performance Analytics Row -->
+<div class="supplier-kpi-grid mb-8">
+  <div class="col-12">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body p-4">
+        <p class="text-muted text-uppercase fw-bold mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">Ποσοστό Επιτυχίας</p>
+        <h2 class="fw-bold mb-2" style="color: var(--color-teal); font-size: 2rem;">{{ performance_stats.win_rate }}%</h2>
+        <div class="progress bg-light mt-3" style="height: 6px; border-radius: 10px;">
+          <div class="progress-bar bg-teal" style="width: {{ performance_stats.win_rate }}%; border-radius: 10px; background-color: var(--color-teal);"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body p-4">
+        <p class="text-muted text-uppercase fw-bold mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">Συνολικές Προσφορές</p>
+        <h2 class="fw-bold mb-0" style="color: var(--color-navy); font-size: 2rem;">{{ performance_stats.total_bids }}</h2>
+        <p class="text-success small mb-0 mt-2 fw-semibold"><i class="bi bi-graph-up me-1"></i>Ενεργή συμμετοχή</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body p-4">
+        <p class="text-muted text-uppercase fw-bold mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">Υπό Αξιολόγηση</p>
+        <h2 class="fw-bold mb-0" style="color: #fd7e14; font-size: 2rem;">{{ performance_stats.pending_eval }}</h2>
+        <p class="text-muted small mb-0 mt-2">Εκκρεμείς προσφορές</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card border-0 shadow-sm rounded-4 h-100">
+      <div class="card-body p-4">
+        <p class="text-muted text-uppercase fw-bold mb-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">Συνολικός Τζίρος</p>
+        <h2 class="fw-bold mb-0" style="color: var(--color-navy); font-size: 2rem;">{{ "{:,.2f}".format(performance_stats.total_revenue) }}€</h2>
+        <p class="text-muted small mb-0 mt-2">Κερδισμένα συμβόλαια</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Layout with Sidebar -->
+<div class="row g-4 mb-8 dashboard-split-layout">
+  <!-- Filters Sidebar -->
+  <div class="col-12 col-lg-3 dashboard-filters-col">
+    <div class="filters-sidebar">
+      <!-- Header -->
+      <div class="filters-sidebar-header">
+        <div class="filters-sidebar-title">
+          <i class="bi bi-funnel-fill"></i>
+          Φίλτρα
+        </div>
+        <button class="filters-sidebar-clear" onclick="clearFilters()">Καθαρισμός</button>
+      </div>
+
+      <form method="get" id="filterForm">
+        <!-- Αναζήτηση -->
+        <div class="filter-section">
+          <div class="filter-section-title">
+            <i class="bi bi-search"></i>
+            Αναζήτηση
+          </div>
+          <input type="text" name="q" class="filter-input w-100" placeholder="Τίτλος ή λέξη..." value="{{ q or '' }}">
+        </div>
+
+        <!-- Κατάσταση -->
+        <div class="filter-section">
+          <div class="filter-section-title">
+            <i class="bi bi-list-check"></i>
+            Κατάσταση
+          </div>
+          <div class="filter-group">
+            <label class="filter-item">
+              <input type="checkbox" name="status" value="all" class="filter-checkbox" {% if not status_filters %}checked{% endif %}>
+              <span class="filter-label">Όλα</span>
+            </label>
+            <label class="filter-item">
+              <input type="checkbox" name="status" value="open" class="filter-checkbox" {% if 'open' in status_filters %}checked{% endif %}>
+              <span class="filter-label">Ανοιχτή / Εκκρεμεί</span>
+            </label>
+            <label class="filter-item">
+              <input type="checkbox" name="status" value="submitted" class="filter-checkbox" {% if 'submitted' in status_filters %}checked{% endif %}>
+              <span class="filter-label">Υποβλήθηκε προσφορά</span>
+            </label>
+            <label class="filter-item">
+              <input type="checkbox" name="status" value="awarded" class="filter-checkbox" {% if 'awarded' in status_filters %}checked{% endif %}>
+              <span class="filter-label">Κατακυρώθηκε / Σε παράδοση</span>
+            </label>
+            <label class="filter-item">
+              <input type="checkbox" name="status" value="received" class="filter-checkbox" {% if 'received' in status_filters %}checked{% endif %}>
+              <span class="filter-label">Παραλήφθηκε</span>
+            </label>
+            <label class="filter-item">
+              <input type="checkbox" name="status" value="rejected" class="filter-checkbox" {% if 'rejected' in status_filters %}checked{% endif %}>
+              <span class="filter-label">Απορρίφθηκε</span>
+            </label>
+            <label class="filter-item">
+              <input type="checkbox" name="status" value="declined" class="filter-checkbox" {% if 'declined' in status_filters %}checked{% endif %}>
+              <span class="filter-label">Δεν ενδιαφέρομαι</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Προθεσμία -->
+        <div class="filter-section">
+          <div class="filter-section-title">
+            <i class="bi bi-clock-history"></i>
+            Προθεσμία Υποβολής
+          </div>
+          <div class="filter-group">
+            <label class="filter-item">
+              <input type="checkbox" name="deadline" value="week" class="filter-checkbox" {% if 'week' in deadline_filters %}checked{% endif %}>
+              <span class="filter-label">Αυτή την εβδομάδα</span>
+            </label>
+            <label class="filter-item">
+              <input type="checkbox" name="deadline" value="month" class="filter-checkbox" {% if 'month' in deadline_filters %}checked{% endif %}>
+              <span class="filter-label">Αυτόν τον μήνα</span>
+            </label>
+            <label class="filter-item">
+              <input type="checkbox" name="deadline" value="quarter" class="filter-checkbox" {% if 'quarter' in deadline_filters %}checked{% endif %}>
+              <span class="filter-label">Αυτό το τρίμηνο</span>
+            </label>
+            <label class="filter-item">
+              <input type="checkbox" name="deadline" value="older" class="filter-checkbox" {% if 'older' in deadline_filters %}checked{% endif %}>
+              <span class="filter-label">Μεταγενέστερες</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Action Buttons (for small screens or manual submit) -->
+        <div class="filters-actions d-none">
+          <button type="submit" class="filters-btn-apply" onclick="showLoading()">
+            <i class="bi bi-check-circle"></i>
+            <span>Εφαρμογή</span>
+          </button>
+          <button type="reset" class="filters-btn-reset" onclick="clearFilters()">
+            <i class="bi bi-x-circle"></i>
+            <span>Καθαρισμός</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Results Col -->
+  <div class="col-12 col-lg-9 dashboard-results-col position-relative">
+
+
+    <!-- Open RFQs Section -->
+    <div class="mb-8">
+      <div class="d-flex justify-content-between align-items-center mb-5">
+        <h2 class="mb-0" style="color: var(--color-navy); font-size: var(--font-size-lg);">
+          <i class="bi bi-folder-open me-2" style="color: var(--color-navy);"></i>Ζητήσεις
+        </h2>
+      </div>
+
+      {% if rfqs %}
+      <div class="card shadow-md overflow-hidden" style="border: none; border-radius: var(--radius-lg);">
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="padding: var(--space-4);">Αριθμός</th>
+                <th>Τίτλος</th>
+                <th>Τόπος Παράδοσης</th>
+                <th>Προθεσμία</th>
+                <th>Κατάσταση</th>
+                <th style="text-align: right; padding-right: var(--space-4);">Ενέργειες</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for rfq in rfqs %}
+              {% set days_left = ((rfq.submit_deadline - now)|string if rfq.submit_deadline else '') %}
+              {% set dl = rfq.submit_deadline %}
+              {% set urgent = dl and (dl - now).days <= 3 %}
+              {% set warning = dl and (dl - now).days <= 7 and not urgent %}
+              <tr style="{% if urgent %}background: rgba(220,53,69,0.06); border-left: 3px solid #dc3545;{% elif warning %}background: rgba(255,193,7,0.07); border-left: 3px solid #ffc107;{% endif %}">
+                <td style="padding: var(--space-4);">
+                  <span class="fw-bold" style="color: var(--color-navy);">#{{ rfq.id }}</span>
+                </td>
+                <td style="padding: var(--space-4);">
+                  <span class="fw-semibold" style="color: var(--color-text-primary);">{{ rfq.title }}</span>
+                </td>
+                <td style="padding: var(--space-4); color: var(--color-text-secondary);">{{ rfq.delivery_location or '-' }}</td>
+                <td style="padding: var(--space-4); color: var(--color-text-secondary);">
+                    {% if rfq.submit_deadline %}
+                    {{ rfq.submit_deadline.strftime('%d/%m/%Y') }}
+                    {% set dl = rfq.submit_deadline %}
+                    {% set days = (dl - now).days %}
+                    {% if days > 0 and days <= 3 %}
+                      <span class="badge bg-danger ms-1"><i class="bi bi-fire me-1"></i>Λήγει σε {{ days }}ημ</span>
+                    {% elif days > 0 and days <= 7 %}
+                      <span class="badge bg-warning text-dark ms-1">Σε {{ days }}ημ</span>
+                    {% endif %}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td style="padding: var(--space-4);">
+                  {% if bids_map and rfq.id in bids_map %}
+                    {% set current_bid = bids_map[rfq.id] %}
+                    {% if rfq.status == 'cancelled' %}
+                      <span class="badge bg-danger">Ακυρώθηκε</span>
+                    {% elif reopen_bid_ids and current_bid.id in reopen_bid_ids %}
+                      <span class="badge bg-info text-dark">Ανοιχτή Ξανά</span>
+                    {% elif current_bid.status == 'submitted' %}
+                      <span class="badge badge-success">Υποβλήθηκε</span>
+                    {% elif current_bid.status == 'accepted' and awarded_bid_ids and current_bid.id in awarded_bid_ids %}
+                      {% if rfq.status == 'received' %}
+                        <span class="badge bg-primary">Παραλήφθηκε</span>
+                      {% else %}
+                        <span class="badge bg-success">Αναμένει Παράδοση</span>
+                      {% endif %}
+                    {% elif current_bid.status == 'accepted' %}
+                      <span class="badge badge-secondary">Αποδεκτή</span>
+                    {% elif current_bid.status == 'rejected' %}
+                      <span class="badge bg-danger">Απορρίφθηκε</span>
+                    {% elif current_bid.status == 'draft' %}
+                      <span class="badge badge-warning text-dark">Πρόχειρο</span>
+                    {% elif current_bid.status == 'declined' %}
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Δεν ενδιαφέρομαι</span>
+                    {% else %}
+                      <span class="badge badge-secondary">{{ get_status_display_name(current_bid.status) }}</span>
+                    {% endif %}
+                  {% else %}
+                    {% if rfq.status in ['closed', 'received'] %}
+                      <span class="badge badge-secondary">Χωρίς προσφορά</span>
+                    {% elif rfq.status == 'cancelled' %}
+                      <span class="badge bg-danger">Ακυρώθηκε</span>
+                    {% else %}
+                      <span class="badge bg-info text-dark">Ανοιχτή</span>
+                    {% endif %}
+                  {% endif %}
+                </td>
+                <td style="text-align: right; padding-right: var(--space-4);">
+                  <div class="d-flex gap-2 justify-content-end">
+                    <a href="{{ url_for('supplier.bid', req_id=rfq.id) }}" class="btn btn-secondary btn-sm px-3" style="white-space: nowrap;">
+                      <i class="bi bi-arrow-right me-1"></i> Προβολή
+                    </a>
+                    {% if rfq.status == 'open' and (not bids_map or rfq.id not in bids_map or bids_map[rfq.id].status not in ['submitted', 'accepted', 'declined']) %}
+                    <button type="button" class="btn btn-outline-danger btn-sm px-2" data-bs-toggle="modal" data-bs-target="#declineModal{{ rfq.id }}" title="Δεν ενδιαφέρομαι">
+                      <i class="bi bi-x-circle"></i>
+                    </button>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+
+              {% if rfq.status == 'open' %}
+              <!-- Decline Modal -->
+              <div class="modal fade" id="declineModal{{ rfq.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content">
+                    <div class="modal-header border-0">
+                      <h5 class="modal-title fw-bold">Δήλωση Μη Ενδιαφέροντος</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form action="{{ url_for('supplier.decline_request', req_id=rfq.id) }}" method="post">
+                      <div class="modal-body">
+                        <p class="text-muted small">Επιλέξτε τον λόγο που δεν επιθυμείτε να υποβάλετε προσφορά για τη ζήτηση #{{ rfq.id }}:</p>
+                        <select name="reason" class="form-select mb-3">
+                          <option value="Έλλειψη αποθέματος">Έλλειψη αποθέματος</option>
+                          <option value="Εκτός κατηγορίας">Εκτός κατηγορίας</option>
+                          <option value="Πολύ σύντομη προθεσμία">Πολύ σύντομη προθεσμία</option>
+                          <option value="Άλλο">Άλλο</option>
+                        </select>
+                        <textarea name="other_reason" class="form-control" rows="2" placeholder="Πρόσθετα σχόλια (προαιρετικά)..."></textarea>
+                      </div>
+                      <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Άκυρο</button>
+                        <button type="submit" class="btn btn-danger">Επιβεβαίωση</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+              {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% else %}
+      <div class="card shadow-sm border-0 py-5 text-center" style="border-radius: var(--radius-xl);">
+          <div class="card-body">
+              <i class="bi bi-file-earmark-text fs-1 d-block mb-3" style="color: var(--color-gray-400);"></i>
+              <h5 class="fw-bold text-dark">Δεν βρέθηκαν ζητήσεις</h5>
+              <p class="text-muted">Δεν υπάρχουν διαθέσιμες ζητήσεις ή προσφορές που να ταιριάζουν με τα φίλτρα σας.</p>
+              <a href="{{ url_for('supplier.dashboard') }}" class="btn btn-outline-primary btn-sm mt-2">
+                  Καθαρισμός Φίλτρων
+              </a>
+          </div>
+      </div>
+      {% endif %}
+
+      <!-- Loading Overlay -->
+      <div id="loadingOverlay" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.7); z-index: 10; align-items: center; justify-content: center; backdrop-filter: blur(2px); border-radius: var(--radius-lg);">
+          <div class="text-center">
+              <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                  <span class="visually-hidden">Φόρτωση...</span>
+              </div>
+              <div class="mt-2 fw-semibold text-primary">Εφαρμογή φίλτρων...</div>
+          </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    function showLoading() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) overlay.style.display = 'flex';
+        
+        const filterForm = document.getElementById('filterForm');
+        if (filterForm) {
+            // Add a small timeout to allow browser spinner to draw
+            setTimeout(() => {
+                filterForm.submit();
+            }, 50);
+        }
+    }
+
+    function clearFilters() {
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) overlay.style.display = 'flex';
+      window.location.href = "{{ url_for('supplier.dashboard') }}";
+    }
+
+    const allStatusCheckbox = document.querySelector('input[name="status"][value="all"]');
+    const statusCheckboxes = Array.from(document.querySelectorAll('input[name="status"]')).filter(checkbox => checkbox.value !== 'all');
+
+    if (allStatusCheckbox) {
+        allStatusCheckbox.addEventListener('change', function () {
+            if (this.checked) {
+                statusCheckboxes.forEach(checkbox => checkbox.checked = false);
+            }
+        });
+    }
+
+    statusCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function () {
+            if (this.checked && allStatusCheckbox) {
+                allStatusCheckbox.checked = false;
+            }
+
+            if (allStatusCheckbox && !statusCheckboxes.some(option => option.checked)) {
+                allStatusCheckbox.checked = true;
+            }
+        });
+    });
+
+    // Auto-submit on filter changes (both status and deadline)
+    document.querySelectorAll('input[name="status"], input[name="deadline"]').forEach(input => {
+        input.addEventListener('change', function () {
+            showLoading();
+        });
+    });
+</script>
+
+<script>
+    function showLoading() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) overlay.style.display = 'flex';
+        
+        const filterForm = document.getElementById('filterForm');
+        if (filterForm) {
+            setTimeout(() => {
+                filterForm.submit();
+            }, 50);
+        }
+    }
+
+    function clearFilters() {
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) overlay.style.display = 'flex';
+      window.location.href = "{{ url_for('supplier.dashboard') }}";
+    }
+
+    // Auto-submit on status change
+    document.querySelectorAll('input[name="status"]').forEach(input => {
+      input.addEventListener('change', function() {
+            showLoading();
+        });
+    });
+</script>
+
+{% endblock %}

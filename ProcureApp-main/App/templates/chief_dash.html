@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8">
+  <h1 class="mb-2" style="color: var(--color-navy);">
+    <i class="bi bi-graph-up me-3" style="color: var(--color-teal);"></i> Σύνοψη Ζητήσεων
+  </h1>
+  <p class="text-secondary mb-0">Έλεγχος και έγκριση ζητήσεων προμηθειών</p>
+</div>
+
+<!-- Pending Approvals Section -->
+<div class="mb-8">
+  <div class="d-flex align-items-center gap-3 mb-5">
+    <h2 class="mb-0" style="color: var(--color-navy); font-size: var(--font-size-lg);">
+      <i class="bi bi-hourglass-split me-2" style="color: var(--color-warning);"></i>
+      Σε εκκρεμότητα για έγκριση
+    </h2>
+    {% if rfqs_pending|length > 0 %}
+    <span class="badge badge-warning" style="padding: var(--space-2) var(--space-4); font-size: var(--font-size-sm);">
+      {{ rfqs_pending|length }} εκκρεμότητα
+    </span>
+    {% endif %}
+  </div>
+
+  <div class="card shadow-md overflow-hidden" style="border: none; border-radius: var(--radius-lg);">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th style="padding: var(--space-4);">ID</th>
+            <th>Τίτλος</th>
+            <th>Δημιουργός</th>
+            <th>Δημιουργία</th>
+            <th style="text-align: right; padding-right: var(--space-4);">Ενέργειες</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rfqs_pending %}
+            <tr>
+              <td style="padding: var(--space-4);">
+                <span class="fw-bold" style="color: var(--color-navy);">#{{ r.id }}</span>
+              </td>
+              <td style="padding: var(--space-4);">
+                <span class="fw-semibold" style="color: var(--color-text-primary);">{{ r.title }}</span>
+              </td>
+              <td style="padding: var(--space-4); color: var(--color-text-secondary);">{{ r.created_by }}</td>
+              <td style="padding: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-sm);">{{ r.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+              <td style="text-align: right; padding-right: var(--space-4);">
+                  <a class="btn btn-primary btn-sm px-3" href="{{ url_for('company.request_detail', req_id=r.id) }}">
+                    <i class="bi bi-check-circle me-1"></i> Έλεγχος & Έγκριση
+                  </a>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="5" style="text-align: center; padding: var(--space-8) var(--space-4); color: var(--color-text-secondary);">
+                <i class="bi bi-check-circle" style="font-size: 2rem; color: var(--color-success); opacity: 0.6; display: block; margin-bottom: var(--space-3);"></i>
+                <strong style="color: var(--color-text-primary);">Δεν υπάρχουν ζητήσεις σε εκκρεμότητα</strong>
+                <p style="margin-top: var(--space-2); font-size: var(--font-size-sm);">Όλες οι ζητήσεις έχουν εγκριθεί</p>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- History & Other Requests Section -->
+<div>
+  <div class="d-flex align-items-center gap-3 mb-5">
+    <h2 class="mb-0" style="color: var(--color-navy); font-size: var(--font-size-lg);">
+      <i class="bi bi-clock-history me-2" style="color: var(--color-navy);"></i>
+      Ιστορικό & Λοιπές Ζητήσεις
+    </h2>
+    {% if rfqs_other|length > 0 %}
+    <span class="badge badge-secondary" style="padding: var(--space-2) var(--space-4); font-size: var(--font-size-sm);">
+      {{ rfqs_other|length }} Ολοκληρωμένες
+    </span>
+    {% endif %}
+  </div>
+
+  <div class="card shadow-md overflow-hidden" style="border: none; border-radius: var(--radius-lg);">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th style="padding: var(--space-4);">ID</th>
+            <th>Τίτλος</th>
+            <th>Κατάστασης</th>
+            <th>Τελευταία Ενημέρωση</th>
+            <th style="text-align: right; padding-right: var(--space-4);">Προβολή</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rfqs_other %}
+            {% set p = phase_info(r) %}
+            <tr>
+              <td style="padding: var(--space-4);">
+                <span class="fw-bold" style="color: var(--color-navy);">#{{ r.id }}</span>
+              </td>
+              <td style="padding: var(--space-4);">
+                <span class="fw-semibold" style="color: var(--color-text-primary);">{{ r.title }}</span>
+              </td>
+              <td style="padding: var(--space-4);">
+                <span class="{{ p.badge }}" style="padding: var(--space-2) var(--space-3); font-size: var(--font-size-sm);">
+                  <i class="bi {{ p.icon }} me-1"></i>{{ p.label }}
+                </span>
+              </td>
+              <td style="padding: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-sm);">{{ (r.approved_at or r.created_at).strftime('%d/%m/%Y %H:%M') }}</td>
+              <td style="text-align: right; padding-right: var(--space-4);">
+                  <a class="btn btn-secondary btn-sm px-3" href="{{ url_for('company.request_detail', req_id=r.id) }}">
+                    <i class="bi bi-eye me-1"></i> Λεπτομέρειες
+                  </a>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="5" style="text-align: center; padding: var(--space-8) var(--space-4); color: var(--color-text-secondary);">
+                <i class="bi bi-inbox" style="font-size: 2rem; opacity: 0.3; display: block; margin-bottom: var(--space-3);"></i>
+                <strong style="color: var(--color-text-primary);">Δεν υπάρχουν εγγραφές στο ιστορικό</strong>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
